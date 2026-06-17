@@ -477,7 +477,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
     <!-- Formula group -->
     <div class="btf-group">
-    <div class="btf-grouptitle">🍼 Formula</div>
+    <div class="btf-grouptitle">Formula</div>
     <div class="sub-head">Formula feeds</div>
     <select id="btfFormulaSelect" onchange="onBTFFormulaChange()">
       <option value="">— select formula —</option>
@@ -1971,7 +1971,7 @@ function buildPrepSheet(f) {
     headUnit = 'Scoops (powder)';
     ratio = `1 scoop (${f.scoopG} g) + ${f.stdWaterPerScoop} ml water → ~${Math.round(f.scoopG + f.stdWaterPerScoop)} ml`
       + (f.multiConc ? ' · at standard 1.0 strength' : '');
-    [30, 60, 90, 120, 150, 180, 210, 240].forEach(vol => {
+    [30, 60, 90, 100, 120, 150, 180, 200, 210, 240].forEach(vol => {
       const scoopsR = Math.round(vol * (f.stdDilution / 100) / f.scoopG * 2) / 2;
       if(scoopsR <= 0) return;
       const water = Math.round(scoopsR * f.stdWaterPerScoop);
