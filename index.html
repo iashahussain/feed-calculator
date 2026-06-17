@@ -152,6 +152,36 @@ select:focus,input:focus{border-color:var(--accent)}
 .settings-gear:hover{background:#155a4c}
 .avail-badge{display:inline-block;font-size:.65rem;font-weight:700;padding:.1rem .4rem;border-radius:4px;background:#e8f5f1;color:var(--accent);border:1px solid #a7d7c8;margin:.1rem .1rem 0 0}
 .flavour-tag{display:inline-block;font-size:.65rem;padding:.1rem .4rem;border-radius:4px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;margin:.1rem .1rem 0 0}
+/* ── Searchable formula combobox ── */
+.combo{position:relative}
+.combo-control{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:8px;background:#fff;transition:border-color .15s}
+.combo-control.open{border-color:var(--accent)}
+.combo-input{flex:1;min-width:0;border:none;outline:none;background:transparent;padding:.55rem .7rem;font-size:.85rem;color:var(--text)}
+.combo-input::placeholder{color:var(--muted)}
+.combo-clear,.combo-caret{background:none;border:none;color:var(--muted);cursor:pointer;padding:.2rem .5rem;font-size:.85rem;line-height:1}
+.combo-clear{display:none}
+.combo.has-value .combo-clear{display:block}
+.combo-panel{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid var(--accent);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.16);z-index:60;max-height:320px;overflow-y:auto;padding:.25rem}
+.combo-panel[hidden]{display:none}
+.combo-group-label{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:.45rem .55rem .2rem}
+.combo-item{display:flex;align-items:center;gap:.4rem;padding:.5rem .55rem;border-radius:7px;cursor:pointer}
+.combo-item:hover,.combo-item.active{background:#e8f5f1}
+.combo-item-main{flex:1;min-width:0}
+.combo-item-name{font-size:.83rem;font-weight:600;color:var(--text)}
+.combo-item-age{font-size:.72rem;color:var(--muted);margin-left:.3rem}
+.combo-item-badges{display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.18rem}
+.cb-badge{font-size:.6rem;font-weight:700;padding:.06rem .35rem;border-radius:4px;text-transform:uppercase;letter-spacing:.03em}
+.cb-badge.danger{background:#fde8e8;color:#c0392b}
+.cb-badge.ok{background:#f0fdf4;color:#166534}
+.cb-badge.warn{background:#fff3e0;color:#e65100}
+.cb-badge.info{background:#ede9fe;color:#5b21b6}
+.combo-fav{background:none;border:none;cursor:pointer;font-size:1.05rem;line-height:1;padding:.1rem .3rem;color:#cbd5e1;flex:none}
+.combo-fav.on{color:var(--accent2)}
+.combo-empty{padding:.7rem .55rem;color:var(--muted);font-size:.8rem}
+/* ── Critical safety banner ── */
+.crit-banner{background:#fde8e8;border:1.5px solid #f5a3a3;color:#9f1239;font-weight:800;font-size:.8rem;border-radius:8px;padding:.55rem .7rem;margin-bottom:.6rem;line-height:1.4}
+/* ── Sticky calculate button ── */
+#calc-btn{position:sticky;bottom:.6rem;z-index:30;box-shadow:0 6px 18px rgba(26,107,92,.3)}
 </style>
 </head>
 <body>
@@ -792,8 +822,8 @@ const STORAGE_KEY = 'formulaCalc_settings_v1';
 function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { pharmacies: ['ADK Pharmacy', 'STO Pharmacy', 'Nalahiya Pharmacy'], availability: {} };
-  } catch(e) { return { pharmacies: [], availability: {} }; }
+    return raw ? JSON.parse(raw) : { pharmacies: ['ADK Pharmacy', 'STO Pharmacy', 'Nalahiya Pharmacy'], availability: {}, favourites: [], recents: [] };
+  } catch(e) { return { pharmacies: [], availability: {}, favourites: [], recents: [] }; }
 }
 
 function saveSettingsData(data) {
@@ -1754,6 +1784,7 @@ function populateFormulaSelects() {
   btfFormula = null;
   document.getElementById('formula-info-box').classList.add('section-hidden');
   document.getElementById('peptjnr-conc').classList.add('section-hidden');
+  refreshAllCombos();
 }
 
 function setPatientType(type) {
@@ -1815,7 +1846,7 @@ function getFormulaObj(key) {
 function onFormulaChange() {
   const key = document.getElementById('formulaSelect').value;
   selectedFormula = key ? getFormulaObj(key) : null;
-  renderFormulaInfo(selectedFormula, 'formula-info-box');
+  renderFormulaInfo(selectedFormula, 'formula-info-box', key);
 
   // Show/hide multi-concentration selector for any multiConc formula
   const isMultiConc = !!(selectedFormula?.multiConc);
@@ -1869,6 +1900,13 @@ function renderFormulaInfo(f, boxId, key) {
   box.classList.remove('section-hidden');
 
   const kcalStr = f.kcal ? `${f.kcal} kcal/100ml` : 'N/A (supplement)';
+
+  // ── Critical safety banner (prominent, top of card) ──
+  const crit = [];
+  if(f.allergens?.includes('peanut'))  crit.push('CONTAINS PEANUT');
+  if(f.peptide && !f.cma)              crit.push("NOT suitable for cow's milk protein allergy (CMPA)");
+  if(f.supplement)                     crit.push('Supplement only — not a complete feed');
+  const criticalHTML = crit.length ? `<div class="crit-banner">⚠ ${crit.join(' &nbsp;·&nbsp; ')}</div>` : '';
 
   // ── Properties badges (formula characteristics) ──
   const propBadges = [];
@@ -1953,6 +1991,7 @@ function renderFormulaInfo(f, boxId, key) {
 
   box.innerHTML = `
     <div class="formula-info">
+      ${criticalHTML}
       <div style="font-weight:700;font-size:.85rem;margin-bottom:.5rem">${f.name} <span style="color:var(--muted);font-weight:400;font-size:.78rem">${f.age}</span></div>
 
       ${propBadges.length ? `
@@ -2216,6 +2255,11 @@ function calculate() {
     console.error('Calculate error:', e);
     document.getElementById('output-text').textContent = '⚠ Calculation error: ' + e.message + '\n\nStack: ' + e.stack;
     document.getElementById('output-section').style.display = 'block';
+  }
+  // Auto-scroll to results once they're shown (helps on mobile)
+  const out = document.getElementById('output-section');
+  if(out && out.style.display === 'block') {
+    setTimeout(() => out.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   }
 }
 
@@ -2995,6 +3039,200 @@ function clearAll() {
   document.getElementById('formula-info-box').classList.add('section-hidden');
   document.getElementById('formula-conc-section').classList.add('section-hidden');
   document.getElementById('peptjnr-conc').classList.add('section-hidden');
+  refreshAllCombos();
+}
+
+// ── Searchable formula combobox + favourites / recents ───────────────────────
+settingsData.favourites = settingsData.favourites || [];
+settingsData.recents = settingsData.recents || [];
+
+function findFormulaByKey(key) {
+  if(!key) return null;
+  return FORMULAS.paediatric.formulas[key] || FORMULAS.adult.formulas[key] || null;
+}
+
+function formulaSearchText(f) {
+  if(!f) return '';
+  const t = [f.name, f.age, f.type || ''];
+  if(f.peptide)            t.push('peptide semi-elemental hydrolysed');
+  if(f.cma || f.ehf)       t.push('cma cmpa cow milk protein allergy hypoallergenic extensively hydrolysed');
+  if(f.peptide && !f.cma)  t.push('not cmpa');
+  if(!f.lactose)           t.push('lactose-free');
+  if(f.glutenFree)         t.push('gluten-free');
+  if(f.mct)                t.push('mct');
+  if(f.dha)                t.push('dha');
+  if(f.supplement)         t.push('supplement');
+  if(f.allergens)          t.push(f.allergens.join(' '));
+  return t.join(' ').toLowerCase();
+}
+
+function formulaComboBadges(f) {
+  if(!f) return '';
+  const b = [];
+  if(f.allergens?.includes('peanut')) b.push('<span class="cb-badge danger">peanut</span>');
+  if(f.peptide && !f.cma)             b.push('<span class="cb-badge danger">not CMPA</span>');
+  if(f.cma || f.ehf)                  b.push('<span class="cb-badge ok">CMPA ✓</span>');
+  if(f.supplement)                    b.push('<span class="cb-badge warn">supplement</span>');
+  else if(f.peptide)                  b.push('<span class="cb-badge info">peptide</span>');
+  return b.join('');
+}
+
+function isFavourite(key) { return settingsData.favourites.includes(key); }
+function toggleFavourite(key) {
+  const i = settingsData.favourites.indexOf(key);
+  if(i === -1) settingsData.favourites.push(key); else settingsData.favourites.splice(i, 1);
+  saveSettingsData(settingsData);
+}
+function addRecent(key) {
+  if(!key) return;
+  const arr = settingsData.recents;
+  const i = arr.indexOf(key);
+  if(i > -1) arr.splice(i, 1);
+  arr.unshift(key);
+  if(arr.length > 6) arr.length = 6;
+  saveSettingsData(settingsData);
+}
+
+const _combos = {};
+
+function comboOptionList(state) {
+  return Array.from(state.select.options).filter(o => o.value !== '').map(o => ({ value: o.value, label: o.textContent }));
+}
+
+function comboRenderRow(o) {
+  const f = findFormulaByKey(o.value);
+  const fav = isFavourite(o.value);
+  const badges = formulaComboBadges(f);
+  const name = f ? f.name : o.label;
+  const age = f ? f.age : '';
+  return '<div class="combo-item" data-value="' + o.value + '">'
+    + '<div class="combo-item-main"><div><span class="combo-item-name">' + name + '</span>'
+    + (age ? '<span class="combo-item-age">' + age + '</span>' : '') + '</div>'
+    + (badges ? '<div class="combo-item-badges">' + badges + '</div>' : '') + '</div>'
+    + '<button type="button" class="combo-fav ' + (fav ? 'on' : '') + '" data-fav="' + o.value + '" title="Favourite">' + (fav ? '★' : '☆') + '</button>'
+    + '</div>';
+}
+
+function renderComboList(state, query) {
+  const norm = (s) => s.toLowerCase().replace(/[–—]/g, '-');
+  const tokens = norm(query || '').split(/\s+/).filter(Boolean);
+  const all = comboOptionList(state);
+  const availKeys = new Set(all.map(o => o.value));
+  const match = (o) => {
+    if(!tokens.length) return true;
+    const hay = norm(o.label + ' ' + formulaSearchText(findFormulaByKey(o.value)));
+    return tokens.every(t => hay.includes(t));
+  };
+  let html = '';
+  if(!tokens.length) {
+    const favRows = settingsData.favourites.filter(k => availKeys.has(k));
+    const recentRows = settingsData.recents.filter(k => availKeys.has(k) && !favRows.includes(k));
+    if(favRows.length) { html += '<div class="combo-group-label">★ Favourites</div>'; favRows.forEach(k => html += comboRenderRow(all.find(o => o.value === k))); }
+    if(recentRows.length) { html += '<div class="combo-group-label">Recent</div>'; recentRows.forEach(k => html += comboRenderRow(all.find(o => o.value === k))); }
+    if(favRows.length || recentRows.length) html += '<div class="combo-group-label">All formulas</div>';
+    all.forEach(o => html += comboRenderRow(o));
+  } else {
+    const filtered = all.filter(match);
+    if(filtered.length) filtered.forEach(o => html += comboRenderRow(o));
+    else html = '<div class="combo-empty">No formula matches that search.</div>';
+  }
+  state.list.innerHTML = html;
+  state.items = Array.from(state.list.querySelectorAll('.combo-item'));
+  state.active = -1;
+  state.items.forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      if(e.target.closest('.combo-fav')) return;
+      e.preventDefault();
+      setComboValue(state.selectId, el.dataset.value);
+    });
+  });
+  state.list.querySelectorAll('.combo-fav').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      toggleFavourite(btn.dataset.fav);
+      renderComboList(state, state.input.value.trim());
+    });
+  });
+}
+
+function moveComboActive(state, dir) {
+  if(!state.items.length) return;
+  state.active = (state.active + dir + state.items.length) % state.items.length;
+  state.items.forEach((el, i) => el.classList.toggle('active', i === state.active));
+  const el = state.items[state.active];
+  if(el) el.scrollIntoView({ block: 'nearest' });
+}
+function chooseComboActive(state) {
+  const el = state.active >= 0 ? state.items[state.active] : state.items[0];
+  if(el) setComboValue(state.selectId, el.dataset.value);
+}
+
+function setComboValue(selectId, value) {
+  const state = _combos[selectId]; if(!state) return;
+  state.select.value = value;
+  if(value) addRecent(value);
+  state.close();
+  syncCombo(selectId);
+  state.select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function syncCombo(selectId) {
+  const state = _combos[selectId]; if(!state) return;
+  const val = state.select.value;
+  const f = findFormulaByKey(val);
+  state.input.value = val ? (f ? f.name + ' (' + f.age + ')' : (state.select.options[state.select.selectedIndex]?.textContent || '')) : '';
+  state.wrap.classList.toggle('has-value', !!val);
+}
+
+function enhanceCombo(selectId) {
+  const select = document.getElementById(selectId);
+  if(!select || select.dataset.comboed) return;
+  select.dataset.comboed = '1';
+  select.style.display = 'none';
+  const placeholder = (select.options[0] && select.options[0].value === '') ? select.options[0].textContent.replace(/^—\s*|\s*—$/g, '').trim() : 'Search…';
+  const wrap = document.createElement('div');
+  wrap.className = 'combo';
+  wrap.innerHTML =
+      '<div class="combo-control">'
+    +   '<input class="combo-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔍 ' + placeholder.replace(/"/g, '&quot;') + '">'
+    +   '<button type="button" class="combo-clear" tabindex="-1" aria-label="Clear">✕</button>'
+    +   '<span class="combo-caret">▾</span>'
+    +   '</div>'
+    +   '<div class="combo-panel" hidden><div class="combo-list"></div></div>';
+  select.parentNode.insertBefore(wrap, select);
+
+  const state = { selectId, select, wrap, active: -1, items: [] };
+  state.input = wrap.querySelector('.combo-input');
+  state.panel = wrap.querySelector('.combo-panel');
+  state.list = wrap.querySelector('.combo-list');
+  const control = wrap.querySelector('.combo-control');
+  const clearBtn = wrap.querySelector('.combo-clear');
+  const caret = wrap.querySelector('.combo-caret');
+  state.close = () => { state.panel.hidden = true; control.classList.remove('open'); state.active = -1; };
+  const open = () => { state.panel.hidden = false; control.classList.add('open'); renderComboList(state, state.input.value.trim()); };
+  _combos[selectId] = state;
+
+  state.input.addEventListener('focus', () => { state.input.select(); open(); });
+  state.input.addEventListener('input', open);
+  state.input.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowDown') { e.preventDefault(); if(state.panel.hidden) open(); else moveComboActive(state, 1); }
+    else if(e.key === 'ArrowUp') { e.preventDefault(); moveComboActive(state, -1); }
+    else if(e.key === 'Enter') { e.preventDefault(); chooseComboActive(state); }
+    else if(e.key === 'Escape') { state.close(); state.input.blur(); }
+  });
+  state.input.addEventListener('blur', () => { setTimeout(() => { state.close(); syncCombo(selectId); }, 160); });
+  clearBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  clearBtn.addEventListener('click', () => setComboValue(selectId, ''));
+  caret.addEventListener('mousedown', (e) => { e.preventDefault(); state.input.focus(); });
+
+  syncCombo(selectId);
+}
+
+function refreshAllCombos() {
+  ['formulaSelect', 'ebmFortFormula', 'mixedFormulaSelect', 'btfFormulaSelect'].forEach(id => {
+    if(document.getElementById(id)) { enhanceCombo(id); syncCombo(id); }
+  });
 }
 
 init();
