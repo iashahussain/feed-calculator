@@ -182,6 +182,26 @@ select:focus,input:focus{border-color:var(--accent)}
 .crit-banner{background:#fde8e8;border:1.5px solid #f5a3a3;color:#9f1239;font-weight:800;font-size:.8rem;border-radius:8px;padding:.55rem .7rem;margin-bottom:.6rem;line-height:1.4}
 /* ── Sticky calculate button ── */
 #calc-btn{position:sticky;bottom:.6rem;z-index:30;box-shadow:0 6px 18px rgba(26,107,92,.3)}
+/* ── Per-kg strip ── */
+.perkg{display:flex;flex-wrap:wrap;gap:.3rem .9rem;margin:.5rem 0;padding:.55rem .75rem;background:#e8f5f1;border:1px solid #a7d7c8;border-radius:8px;font-size:.8rem;color:var(--accent)}
+.perkg span{white-space:nowrap}
+.perkg b{font-weight:800;font-size:.92rem}
+.perkg .pk-label{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);align-self:center;margin-right:.1rem}
+/* ── Adequacy bars ── */
+.adq{margin:.5rem 0}
+.adq-top{display:flex;justify-content:space-between;align-items:baseline;font-size:.77rem;margin-bottom:.25rem}
+.adq-top .adq-pct{font-weight:400;color:var(--muted)}
+.bar-track{height:9px;background:#e5ebf1;border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;transition:width .4s ease}
+.bar-fill.ok{background:var(--success)}
+.bar-fill.warn{background:var(--warn)}
+.bar-fill.bad{background:var(--danger)}
+/* ── Collapsible formula nutrition ── */
+.fi-details{margin-top:.5rem;border-top:1px solid var(--border);padding-top:.35rem}
+.fi-details>summary{cursor:pointer;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);list-style:none;padding:.15rem 0;user-select:none}
+.fi-details>summary::-webkit-details-marker{display:none}
+.fi-details>summary::before{content:'▸ '}
+.fi-details[open]>summary::before{content:'▾ '}
 </style>
 </head>
 <body>
@@ -2006,16 +2026,18 @@ function renderFormulaInfo(f, boxId, key) {
         <div>${allergenBadges.join(' ')}</div>
       </div>` : ''}
 
-      <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem;margin-top:.2rem">Nutrition per 100ml</div>
-      <div class="fi-row"><span>Energy</span><span class="fi-val">${kcalStr}</span></div>
-      <div class="fi-row"><span>Protein</span><span class="fi-val">${f.protein}g</span></div>
-      <div class="fi-row"><span>Fat</span><span class="fi-val">${f.fat}g</span></div>
-      <div class="fi-row"><span>Carbohydrate</span><span class="fi-val">${f.cho}g</span></div>
-      ${f.fibre ? `<div class="fi-row"><span>Fibre</span><span class="fi-val">${f.fibre}g</span></div>` : ''}
-      <div class="fi-row"><span>Sodium</span><span class="fi-val">${f.sodium}mg</span></div>
-      <div class="fi-row"><span>Potassium</span><span class="fi-val">${f.potassium}mg</span></div>
-
-      ${scoopHTML}
+      <details class="fi-details">
+        <summary>Full nutrition (per 100 ml${(f.scoopG||f.type==='sachet')?' &amp; per scoop':''})</summary>
+        <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:.35rem 0 .25rem">Nutrition per 100ml</div>
+        <div class="fi-row"><span>Energy</span><span class="fi-val">${kcalStr}</span></div>
+        <div class="fi-row"><span>Protein</span><span class="fi-val">${f.protein}g</span></div>
+        <div class="fi-row"><span>Fat</span><span class="fi-val">${f.fat}g</span></div>
+        <div class="fi-row"><span>Carbohydrate</span><span class="fi-val">${f.cho}g</span></div>
+        ${f.fibre ? `<div class="fi-row"><span>Fibre</span><span class="fi-val">${f.fibre}g</span></div>` : ''}
+        <div class="fi-row"><span>Sodium</span><span class="fi-val">${f.sodium}mg</span></div>
+        <div class="fi-row"><span>Potassium</span><span class="fi-val">${f.potassium}mg</span></div>
+        ${scoopHTML}
+      </details>
       ${dilutionHTML}
 
       ${f.notes ? `<div style="margin-top:.5rem;color:var(--muted);font-size:.72rem;line-height:1.4">${f.notes.replace(/NOT suitable for cows' milk protein allergy/g,'<strong style="color:var(--danger)">⚠ NOT suitable for cows\' milk protein allergy</strong>')}</div>` : ''}
@@ -2464,41 +2486,44 @@ function calcMixed(ebmVol, ebmFreq, ebmKcal, formulaF, fVol, fFreq) {
   return { kcalDay, protDay, fatDay, choDay, naDay:null, kDay:null, totalVol, volPerFeed:fVol, feedsPerDay:fFreq, ebmVol, ebmFreq, ebmTotal, fTotal, mixed:true };
 }
 
+function adequacyBar(label, value, target, unit) {
+  const pct = Math.round(value/target*100);
+  const cls = (pct>=90 && pct<=110) ? 'ok' : (pct<70 || pct>120) ? 'bad' : 'warn';
+  return `<div class="adq"><div class="adq-top"><span>${label}</span>`
+    + `<span><strong>${pct}%</strong> <span class="adq-pct">· ${value}/${target} ${unit}</span></span></div>`
+    + `<div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.min(pct,100)}%"></div></div></div>`;
+}
+
 function renderResults(r, targetKcal, targetProt, ageGroup, weight) {
   const grid = document.getElementById('results-grid');
   const wt = weight || null;
 
-  let kcalKg = wt ? (r.kcalDay/wt).toFixed(1) : null;
-  let protKg = wt ? (r.protDay/wt).toFixed(2) : null;
+  const kcalKg = wt ? (r.kcalDay/wt).toFixed(1) : null;
+  const protKg = wt ? (r.protDay/wt).toFixed(2) : null;
+  const volKg  = (wt && r.totalVol) ? Math.round(r.totalVol/wt) : null;
 
   grid.innerHTML = `
-    <div class="res-box highlight"><div class="rv">${r.kcalDay}</div><div class="rl">kcal/day${kcalKg?` · ${kcalKg} kcal/kg`:''}</div></div>
-    <div class="res-box highlight"><div class="rv">${r.protDay}g</div><div class="rl">protein/day${protKg?` · ${protKg} g/kg`:''}</div></div>
+    <div class="res-box highlight"><div class="rv">${r.kcalDay}</div><div class="rl">kcal/day</div></div>
+    <div class="res-box highlight"><div class="rv">${r.protDay}g</div><div class="rl">protein/day</div></div>
     <div class="res-box"><div class="rv">${r.totalVol}ml</div><div class="rl">total volume/day</div></div>
     <div class="res-box"><div class="rv">${r.fatDay}g</div><div class="rl">fat/day</div></div>
     <div class="res-box"><div class="rv">${r.choDay}g</div><div class="rl">CHO/day</div></div>
     <div class="res-box"><div class="rv">${r.naDay ?? '—'}</div><div class="rl">sodium mg/day</div></div>`;
 
-  // % of targets
+  // Per-kg strip + adequacy bars
   const pctDiv = document.getElementById('pct-eer');
-  if(targetKcal || targetProt) {
-    let html = '<div style="margin:.5rem 0;font-size:.78rem">';
-    if(targetKcal) {
-      const pct = Math.round(r.kcalDay/targetKcal*100);
-      const cls = pct>=90&&pct<=110 ? 'ok' : pct<70||pct>120 ? 'bad' : 'warn-f';
-      html += `<div class="flag ${cls}">⚡ Energy: ${r.kcalDay} / ${targetKcal} kcal = <strong>${pct}% of target</strong></div>`;
-    }
-    if(targetProt) {
-      const pct = Math.round(r.protDay/targetProt*100);
-      const cls = pct>=90&&pct<=110 ? 'ok' : pct<70||pct>120 ? 'bad' : 'warn-f';
-      html += `<div class="flag ${cls}">🥩 Protein: ${r.protDay}g / ${targetProt}g = <strong>${pct}% of target</strong></div>`;
-    }
-    html += '</div>';
-    pctDiv.innerHTML = html;
-    pctDiv.classList.remove('section-hidden');
-  } else {
-    pctDiv.classList.add('section-hidden');
+  let html = '';
+  if(wt) {
+    html += `<div class="perkg"><span class="pk-label">Per kg</span>`
+      + `<span><b>${kcalKg}</b> kcal/kg</span>`
+      + `<span><b>${protKg}</b> g protein/kg</span>`
+      + (volKg ? `<span><b>${volKg}</b> ml/kg</span>` : '')
+      + `</div>`;
   }
+  if(targetKcal) html += adequacyBar('⚡ Energy', r.kcalDay, targetKcal, 'kcal');
+  if(targetProt) html += adequacyBar('🥩 Protein', r.protDay, targetProt, 'g');
+  if(html) { pctDiv.innerHTML = html; pctDiv.classList.remove('section-hidden'); }
+  else pctDiv.classList.add('section-hidden');
 
   // Safety flags for paeds
   const flags = document.getElementById('safety-flags');
