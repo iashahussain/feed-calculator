@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Formula Feed Calculator">
+  <rect width="512" height="512" rx="112" fill="#1a6b5c"/>
+  <!-- teat -->
+  <ellipse cx="256" cy="104" rx="26" ry="24" fill="#ffffff"/>
+  <!-- collar -->
+  <rect x="208" y="120" width="96" height="30" rx="10" fill="#ffffff"/>
+  <!-- bottle body -->
+  <rect x="196" y="158" width="120" height="210" rx="30" fill="#ffffff"/>
+  <!-- measurement ticks -->
+  <g stroke="#1a6b5c" stroke-width="12" stroke-linecap="round">
+    <line x1="224" y1="232" x2="272" y2="232"/>
+    <line x1="224" y1="276" x2="256" y2="276"/>
+    <line x1="224" y1="320" x2="272" y2="320"/>
+  </g>
+</svg>

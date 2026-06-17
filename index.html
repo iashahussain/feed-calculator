@@ -1,0 +1,2988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Formula Feed Calculator</title>
+<!-- PWA: installable, offline, home-screen icon -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#1a6b5c">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Feed Calc">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function (e) { console.warn('SW registration failed:', e); });
+  });
+}
+</script>
+<style>
+:root {
+  --bg: #f0f4f8;
+  --card: #ffffff;
+  --border: #dde3ea;
+  --accent: #1a6b5c;
+  --accent2: #e8a020;
+  --accent3: #c0392b;
+  --text: #1a2332;
+  --muted: #64748b;
+  --light: #f8fafc;
+  --paeds: #1a6b5c;
+  --adult: #2563a0;
+  --warn: #e8a020;
+  --danger: #c0392b;
+  --success: #16a34a;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1rem}
+header{text-align:center;padding:1.5rem 1rem 1rem;margin-bottom:1.5rem}
+header .logo{font-size:.75rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem}
+header h1{font-size:1.6rem;font-weight:800;color:var(--text);line-height:1.2}
+header h1 span{color:var(--accent)}
+header p{font-size:.82rem;color:var(--muted);margin-top:.3rem}
+.app{max-width:680px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.ct{font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem}
+.tabs{display:flex;gap:.5rem;margin-bottom:1rem}
+.tab{flex:1;padding:.55rem;border:2px solid var(--border);border-radius:8px;background:var(--light);font-size:.8rem;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;color:var(--muted)}
+.tab.active.paeds{border-color:var(--paeds);background:#e8f5f1;color:var(--paeds)}
+.tab.active.adult{border-color:var(--adult);background:#e8f0fb;color:var(--adult)}
+.tab:hover:not(.active){border-color:#aab;background:#f0f2f5}
+label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.3rem;margin-top:.7rem}
+label:first-of-type{margin-top:0}
+select,input[type=text],input[type=number]{width:100%;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem;background:#fff;color:var(--text);outline:none;transition:border-color .15s}
+select:focus,input:focus{border-color:var(--accent)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.7rem}
+.hint{font-size:.72rem;color:var(--muted);margin-top:.25rem}
+.hint.warn{color:var(--warn);font-weight:600}
+.hint.danger{color:var(--danger);font-weight:600}
+.formula-info{background:var(--light);border:1px solid var(--border);border-radius:8px;padding:.8rem;margin-top:.7rem;font-size:.78rem}
+.formula-info .fi-row{display:flex;justify-content:space-between;padding:.2rem 0;border-bottom:1px solid var(--border)}
+.formula-info .fi-row:last-child{border-bottom:none}
+.formula-info .fi-val{font-weight:700;color:var(--text)}
+.badge{display:inline-block;font-size:.65rem;font-weight:700;padding:.15rem .45rem;border-radius:4px;margin:.1rem .1rem 0 0;text-transform:uppercase}
+.badge.lf{background:#fef3c7;color:#92400e}
+.badge.mct{background:#e0f2fe;color:#075985}
+.badge.dha{background:#f0fdf4;color:#166534}
+.badge.warn{background:#fff3e0;color:#e65100}
+.badge.danger{background:#fde8e8;color:#c0392b}
+.badge.soy{background:#fdf4ff;color:#7e22ce}
+.badge.fish{background:#e0f2fe;color:#075985}
+.badge.supp{background:#fde8e8;color:#9f1239}
+.badge.gf{background:#f0fdf4;color:#166534}
+.badge.ehf{background:#fde8ff;color:#6b21a8}
+.badge.cma{background:#fff0f6;color:#9d174d}
+.badge.peptide{background:#ede9fe;color:#5b21b6}
+.badge-al{display:inline-block;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:4px;margin:.1rem .1rem 0 0;border:1.5px solid}
+.badge-al.milk{background:#fff0f0;color:#9f1239;border-color:#fca5a5}
+.badge-al.soy{background:#fdf4ff;color:#6b21a8;border-color:#d8b4fe}
+.badge-al.fish{background:#eff6ff;color:#1e40af;border-color:#93c5fd}
+.badge-al.wheat{background:#fefce8;color:#854d0e;border-color:#fde047}
+.badge-al.peanut{background:#fde8e8;color:#9f1239;border-color:#f87171;font-weight:800}
+.feed-type-row{display:flex;gap:.5rem;margin-bottom:.7rem;flex-wrap:wrap}
+.feed-btn{padding:.4rem .85rem;border:2px solid var(--border);border-radius:20px;font-size:.78rem;font-weight:600;cursor:pointer;background:#fff;color:var(--muted);transition:all .15s}
+.feed-btn.active{border-color:var(--accent);background:#e8f5f1;color:var(--accent)}
+.conc-row{display:flex;gap:.5rem;margin-top:.5rem}
+.conc-btn{flex:1;padding:.4rem;border:2px solid var(--border);border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;text-align:center;background:#fff;color:var(--muted);transition:all .15s}
+.conc-btn.active{border-color:var(--accent2);background:#fff8e8;color:#92400e}
+.conc-btn:hover:not(.active){border-color:#aab}
+.sep{height:2px;background:linear-gradient(to right,var(--accent),transparent);margin:1rem 0;border-radius:1px;opacity:.2}
+.btn{width:100%;padding:.7rem;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.02em}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#155a4c}
+.btn-secondary{background:var(--border);color:var(--muted);margin-top:.5rem}
+.btn-secondary:hover{background:#c8d0da}
+.btn-small{width:auto;padding:.35rem .8rem;font-size:.78rem;border-radius:6px}
+.results{background:var(--light);border:1.5px solid var(--accent);border-radius:var(--radius);padding:1.1rem;margin-top:1rem}
+.results-title{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:.7rem}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.7rem}
+.res-box{background:#fff;border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;text-align:center}
+.res-box .rv{font-size:1.3rem;font-weight:800;color:var(--text)}
+.res-box .rl{font-size:.68rem;color:var(--muted);margin-top:.1rem}
+.res-box.highlight{border-color:var(--accent);background:#e8f5f1}
+.res-box.highlight .rv{color:var(--accent)}
+.res-box.warn-box{border-color:var(--warn);background:#fff8e8}
+.res-box.warn-box .rv{color:#92400e}
+.recipe-box{background:#fff;border:1.5px dashed var(--accent2);border-radius:8px;padding:.8rem;margin:.7rem 0;font-size:.8rem}
+.recipe-box .rb-title{font-weight:700;color:#92400e;margin-bottom:.4rem;font-size:.75rem}
+.flag{display:flex;align-items:flex-start;gap:.5rem;padding:.5rem .7rem;border-radius:7px;margin:.3rem 0;font-size:.76rem}
+.flag.ok{background:#f0fdf4;border:1px solid #86efac;color:#166534}
+.flag.warn-f{background:#fff3e0;border:1px solid #fcd34d;color:#92400e}
+.flag.bad{background:#fde8e8;border:1px solid #fca5a5;color:#9f1239}
+.output-box{background:#1a2332;color:#e2e8f0;border-radius:8px;padding:1rem;font-family:'Courier New',monospace;font-size:.75rem;line-height:1.6;white-space:pre-wrap;margin:.7rem 0;max-height:280px;overflow-y:auto}
+.copy-btn{background:var(--accent2);color:#fff;border:none;border-radius:6px;padding:.4rem .9rem;font-size:.78rem;font-weight:700;cursor:pointer;float:right;margin-bottom:.3rem}
+.copy-btn:hover{background:#c47f10}
+.copy-btn.done{background:var(--success)}
+#output-section{display:none}
+.section-hidden{display:none}
+.eer-row{background:#f0fdf4;border:1px solid #86efac;border-radius:7px;padding:.6rem .8rem;margin-top:.5rem;font-size:.78rem;color:#166534}
+.eer-row strong{color:#166534}
+.ebm-fort-info{background:#fef9ec;border:1px solid #fcd34d;border-radius:8px;padding:.8rem;margin-top:.6rem;font-size:.78rem;color:#78350f}
+/* Settings panel */
+.settings-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;overflow-y:auto}
+.settings-overlay.open{display:flex;align-items:flex-start;justify-content:center;padding:1rem}
+.settings-panel{background:#fff;border-radius:14px;width:100%;max-width:640px;box-shadow:0 8px 40px rgba(0,0,0,.18);margin:auto}
+.settings-header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.25rem .8rem;border-bottom:1px solid var(--border)}
+.settings-header h2{font-size:1rem;font-weight:800;color:var(--text)}
+.settings-close{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);padding:.2rem .5rem;border-radius:6px}
+.settings-close:hover{background:var(--bg)}
+.settings-body{padding:1.1rem 1.25rem}
+.settings-section{margin-bottom:1.2rem}
+.settings-section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.6rem}
+.pharmacy-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem}
+.pharmacy-row input{flex:1;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem}
+.pharmacy-row button{padding:.4rem .7rem;border:none;border-radius:7px;cursor:pointer;font-size:.8rem;font-weight:600}
+.btn-remove-ph{background:#fde8e8;color:#9f1239}
+.btn-remove-ph:hover{background:#fca5a5}
+.formula-avail-row{background:var(--light);border:1px solid var(--border);border-radius:8px;padding:.65rem .8rem;margin-bottom:.5rem}
+.formula-avail-name{font-size:.8rem;font-weight:700;margin-bottom:.4rem}
+.ph-checks{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.4rem}
+.ph-check-label{display:flex;align-items:center;gap:.3rem;font-size:.76rem;background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:.25rem .55rem;cursor:pointer;user-select:none}
+.ph-check-label input{accent-color:var(--accent)}
+.ph-check-label.checked{border-color:var(--accent);background:#e8f5f1;color:var(--accent);font-weight:600}
+.flavour-input{width:100%;padding:.35rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.76rem;margin-top:.2rem}
+.settings-gear{position:fixed;bottom:1.2rem;right:1.2rem;width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:1.2rem;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.2);z-index:50;display:flex;align-items:center;justify-content:center}
+.settings-gear:hover{background:#155a4c}
+.avail-badge{display:inline-block;font-size:.65rem;font-weight:700;padding:.1rem .4rem;border-radius:4px;background:#e8f5f1;color:var(--accent);border:1px solid #a7d7c8;margin:.1rem .1rem 0 0}
+.flavour-tag{display:inline-block;font-size:.65rem;padding:.1rem .4rem;border-radius:4px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;margin:.1rem .1rem 0 0}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">Paediatric Dietetics</div>
+  <h1>Formula Feed <span>Calculator</span></h1>
+  <p>Enteral nutrition · Feed planning · Notes output</p>
+</header>
+<div style="background:#fff8e8;border:1.5px solid #fcd34d;border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1rem;font-size:.75rem;line-height:1.5;color:#78350f;text-align:center">
+  <strong>For use by qualified healthcare professionals only.</strong> This tool is a clinical aid and does not replace professional judgement. Nutritional data is sourced from manufacturer labelling and should be verified. The author accepts no liability for clinical decisions made using this tool.
+</div>
+
+<!-- SETTINGS OVERLAY -->
+<div class="settings-overlay" id="settings-overlay" onclick="closeSettingsIfBg(event)">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h2>⚙ Settings — Pharmacies & Availability</h2>
+      <button class="settings-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="settings-body">
+
+      <!-- Pharmacy management -->
+      <div class="settings-section">
+        <div class="settings-section-title">Pharmacies in Malé</div>
+        <div id="pharmacy-list"></div>
+        <div style="display:flex;gap:.5rem;margin-top:.4rem">
+          <input type="text" id="new-pharmacy-input" placeholder="Add pharmacy name..." style="flex:1;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem" onkeydown="if(event.key==='Enter')addPharmacy()">
+          <button onclick="addPharmacy()" style="padding:.4rem .9rem;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:.82rem;font-weight:700;cursor:pointer">Add</button>
+        </div>
+      </div>
+
+      <!-- Formula availability -->
+      <div class="settings-section">
+        <div class="settings-section-title">Formula Availability & Flavours</div>
+        <div class="hint" style="margin-bottom:.6rem">Tick which pharmacies stock each formula and enter available flavours.</div>
+        <div id="formula-avail-list"></div>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:.5rem">Save & Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Gear button -->
+<button class="settings-gear" onclick="openSettings()" title="Settings">⚙</button>
+
+<!-- PATIENT INFO -->
+<div class="card">
+  <div class="ct">Patient & Requirements</div>
+  <div class="g2">
+    <div>
+      <label>Weight (kg)</label>
+      <input type="number" id="weight" placeholder="e.g. 4.5" step="0.01" oninput="updateEER()">
+    </div>
+    <div>
+      <label>Age group</label>
+      <select id="ageGroup" onchange="updateEER()">
+        <option value="">— select —</option>
+        <option value="preterm">Preterm / Neonate</option>
+        <option value="0-6m">0–6 months</option>
+        <option value="6-12m">6–12 months</option>
+        <option value="1-2y">1–2 years</option>
+        <option value="2-6y">2–6 years</option>
+        <option value="6-18y">6–18 years</option>
+        <option value="adult">Adult</option>
+      </select>
+    </div>
+  </div>
+  <div class="g2">
+    <div>
+      <label>Target energy (kcal/day)</label>
+      <input type="number" id="targetKcal" placeholder="e.g. 600" oninput="updateOutputPreview()">
+    </div>
+    <div>
+      <label>Target protein (g/day)</label>
+      <input type="number" id="targetProt" placeholder="e.g. 12" step="0.1" oninput="updateOutputPreview()">
+    </div>
+  </div>
+  <div id="eer-display" class="eer-row section-hidden"></div>
+  <div id="efr-display" class="eer-row section-hidden" style="margin-top:.4rem;background:#e0f2fe;border-color:#7dd3fc;color:#075985"></div>
+  <div class="g2" style="margin-top:.5rem">
+    <div>
+      <label>Target fluid (ml/day) <span style="font-weight:400;color:var(--muted)">(optional override)</span></label>
+      <input type="number" id="fluid-target" placeholder="auto from weight" oninput="updateEFR()">
+    </div>
+  </div>
+</div>
+
+<!-- FEED TYPE -->
+<div class="card">
+  <div class="ct">Feed Type</div>
+  <div class="tabs">
+    <div class="tab paeds active" id="tab-paeds" onclick="setPatientType('paeds')">👶 Paediatric</div>
+    <div class="tab adult" id="tab-adult" onclick="setPatientType('adult')">🧑 Adult</div>
+  </div>
+  <div id="adult-formula-note" class="section-hidden hint" style="margin-bottom:.6rem">
+    💡 Adult formulas are suitable for children ≥6 years and ≥20kg. If the child is over 6 years but under 20kg, use a paediatric formula.
+  </div>
+  <div class="feed-type-row">
+    <div class="feed-btn active" id="ft-formula" onclick="setFeedType('formula')">Formula</div>
+    <div class="feed-btn" id="ft-ebm" onclick="setFeedType('ebm')">EBM</div>
+    <div class="feed-btn" id="ft-ebmfort" onclick="setFeedType('ebmfort')" id="ft-ebmfort">Fortified EBM</div>
+    <div class="feed-btn" id="ft-mixed" onclick="setFeedType('mixed')">EBM + Formula</div>
+    <div class="feed-btn" id="ft-btf" onclick="setFeedType('btf')">BTF + Formula</div>
+  </div>
+
+  <!-- FORMULA SECTION -->
+  <div id="section-formula">
+    <label>Select formula</label>
+    <select id="formulaSelect" onchange="onFormulaChange()">
+      <option value="">— select formula —</option>
+    </select>
+    <div id="formula-info-box" class="section-hidden"></div>
+
+    <!-- Multi-concentration selector (dynamic — rendered for any multiConc formula) -->
+    <div id="peptjnr-conc" class="section-hidden">
+      <label id="multiconc-label">Concentration</label>
+      <div class="conc-row" id="multiconc-btns"></div>
+    </div>
+
+    <!-- Formula concentration (RCH method) - paeds only -->
+    <div id="formula-conc-section" class="section-hidden">
+      <label>Formula concentration (RCH)</label>
+      <div class="conc-row">
+        <div class="conc-btn active" id="fc-std" onclick="setFormulaConc('std')">Standard<br><small>×1.0 · 67 kcal</small></div>
+        <div class="conc-btn" id="fc-125" onclick="setFormulaConc('x125')">×1.25<br><small>84 kcal/100ml</small></div>
+        <div class="conc-btn" id="fc-15" onclick="setFormulaConc('x15')">×1.5<br><small>100 kcal/100ml</small></div>
+      </div>
+      <div id="conc-recipe" class="section-hidden recipe-box"></div>
+    </div>
+  </div>
+
+  <!-- EBM ONLY SECTION -->
+  <div id="section-ebm" class="section-hidden">
+    <div class="formula-info" style="margin-top:.5rem">
+      <div style="font-weight:700;margin-bottom:.4rem;font-size:.82rem">EBM Reference Values (RCH)</div>
+      <div class="fi-row"><span>Energy</span><span class="fi-val">67 kcal/100ml</span></div>
+      <div class="fi-row"><span>Protein</span><span class="fi-val">1.0 g/100ml</span></div>
+      <div class="fi-row"><span>Fat</span><span class="fi-val">4.2 g/100ml</span></div>
+      <div class="fi-row"><span>Carbohydrate</span><span class="fi-val">7.3 g/100ml</span></div>
+    </div>
+    <div class="hint">These are average reference values. Actual composition varies.</div>
+  </div>
+
+  <!-- EBM FORTIFICATION SECTION -->
+  <div id="section-ebmfort" class="section-hidden">
+    <div class="formula-info" style="margin-top:.5rem">
+      <div style="font-weight:700;margin-bottom:.4rem;font-size:.82rem">EBM Reference Values (RCH)</div>
+      <div class="fi-row"><span>Plain EBM</span><span class="fi-val">67 kcal/100ml · 1.0g protein</span></div>
+    </div>
+    <label>Fortification target (RCH method)</label>
+    <div class="conc-row">
+      <div class="conc-btn active" id="ef-std" onclick="setEBMFort('std')">No fortification<br><small>67 kcal/100ml</small></div>
+      <div class="conc-btn" id="ef-x125" onclick="setEBMFort('x125')">84 kcal/100ml<br><small>1 tsp per 80ml EBM</small></div>
+      <div class="conc-btn" id="ef-x15" onclick="setEBMFort('x15')">100 kcal/100ml<br><small>2 tsp per 80ml EBM</small></div>
+    </div>
+    <label>Formula powder used for fortification</label>
+    <select id="ebmFortFormula" onchange="updateEBMFortInfo()">
+      <option value="">— select formula —</option>
+    </select>
+    <div id="ebm-fort-info" class="section-hidden ebm-fort-info"></div>
+  </div>
+
+  <!-- MIXED SECTION -->
+  <div id="section-mixed" class="section-hidden">
+    <div class="hint" style="margin-bottom:.5rem">Enter EBM feeds and formula feeds separately below.</div>
+    <label>EBM feeds</label>
+    <div class="g3">
+      <div><label>Vol/feed (ml)</label><input type="number" id="ebm-vol" placeholder="e.g. 60" oninput="updateOutputPreview()"></div>
+      <div><label>Feeds/day</label><input type="number" id="ebm-freq" placeholder="e.g. 6" oninput="updateOutputPreview()"></div>
+      <div><label>EBM kcal/100ml</label><input type="number" id="ebm-kcal-custom" value="67" oninput="updateOutputPreview()"></div>
+    </div>
+    <label style="margin-top:.8rem">Formula feeds</label>
+    <select id="mixedFormulaSelect" onchange="onMixedFormulaChange()">
+      <option value="">— select formula —</option>
+    </select>
+  </div>
+
+  <!-- BTF + Formula SECTION -->
+  <div id="section-btf" class="section-hidden">
+
+    <!-- Route -->
+    <label>Route of administration</label>
+    <select id="btfRouteSelect" onchange="updateFluidsCard();updateFlushPreview()">
+      <option value="NGT">NGT (Nasogastric tube)</option>
+      <option value="OGT">OGT (Orogastric tube)</option>
+      <option value="PEG">PEG (Percutaneous endoscopic gastrostomy)</option>
+      <option value="Oral">Oral</option>
+      <option value="Oral + EN">Oral + EN</option>
+    </select>
+
+    <!-- UC tabs for BTF -->
+    <div class="tabs" style="margin-top:.8rem">
+      <div class="tab paeds active" id="btf-uc-tab-1" onclick="setBTFUseCase(1)">
+        📋 Estimate intake
+        <div style="font-size:.65rem;font-weight:400;margin-top:.1rem">What are they getting?</div>
+      </div>
+      <div class="tab adult" id="btf-uc-tab-2" onclick="setBTFUseCase(2)">
+        🎯 Calculate Nutrition Support
+        <div style="font-size:.65rem;font-weight:400;margin-top:.1rem">What formula volume meets target?</div>
+      </div>
+    </div>
+
+    <!-- BTF density -->
+    <div style="margin-top:.7rem">
+      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Blended feed density</div>
+      <div class="conc-row">
+        <div class="conc-btn active" id="btf-low" onclick="setBTFDensity('low')">Low<br><small>~0.75 kcal/ml</small></div>
+        <div class="conc-btn" id="btf-std" onclick="setBTFDensity('std')">Standard<br><small>~1.0 kcal/ml</small></div>
+        <div class="conc-btn" id="btf-high" onclick="setBTFDensity('high')">High<br><small>~1.3 kcal/ml</small></div>
+        <div class="conc-btn" id="btf-custom" onclick="setBTFDensity('custom')">Custom</div>
+      </div>
+      <div class="g2" style="margin-top:.5rem">
+        <div>
+          <label>BTF energy (kcal/100ml)</label>
+          <input type="number" id="btf-kcal" placeholder="e.g. 100" step="0.1" oninput="updateBTFPreview()">
+        </div>
+        <div>
+          <label>BTF protein (g/100ml)</label>
+          <input type="number" id="btf-prot" placeholder="e.g. 3.5" step="0.1" oninput="updateBTFPreview()">
+        </div>
+      </div>
+      <div id="btf-note" style="margin-top:.4rem;padding:.35rem .6rem;background:#fef9ec;border:1px solid #fcd34d;border-radius:6px;font-size:.71rem;color:#78350f"></div>
+    </div>
+
+    <!-- BTF feeds -->
+    <div style="margin-top:.8rem;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">BTF feeds</div>
+    <div class="g2">
+      <div>
+        <label>Volume per BTF feed (ml)</label>
+        <input type="number" id="btf-vol" placeholder="e.g. 150" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary()">
+      </div>
+      <div>
+        <label>BTF feeds per day</label>
+        <input type="number" id="btf-freq" placeholder="e.g. 3" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary();if(btfUseCase===2){renderBTFMealInputs();generateBTFSchedule();}">
+      </div>
+    </div>
+
+    <!-- BTF meal names (UC2 only) - rendered by JS based on btf-freq -->
+    <div id="btf-meal-names" class="section-hidden" style="margin-top:.5rem">
+      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">BTF Meal Names <span style="font-weight:400;color:var(--muted)">(one per BTF feed)</span></div>
+      <div id="btf-meal-inputs"></div>
+    </div>
+
+    <!-- Formula feeds -->
+    <div style="margin-top:.8rem;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Formula feeds</div>
+    <select id="btfFormulaSelect" onchange="onBTFFormulaChange()">
+      <option value="">— select formula —</option>
+    </select>
+    <div id="btf-formula-info" class="section-hidden" style="margin-top:.4rem"></div>
+
+    <!-- UC1: enter formula vol/freq or scoops -->
+    <div id="btf-uc1-formula" style="margin-top:.5rem">
+      <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+        <div class="feed-btn active" id="btf-im-vol" onclick="setBTFInputMethod('vol')">By volume</div>
+        <div class="feed-btn" id="btf-im-scoop" onclick="setBTFInputMethod('scoop')">By scoops</div>
+      </div>
+      <div id="btf-im-vol-section">
+        <div class="g2">
+          <div>
+            <label>Volume per formula feed (ml)</label>
+            <input type="number" id="btf-fvol" placeholder="e.g. 150" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary()">
+          </div>
+          <div>
+            <label>Formula feeds per day</label>
+            <input type="number" id="btf-ffreq" placeholder="e.g. 3" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary()">
+          </div>
+        </div>
+      </div>
+      <div id="btf-im-scoop-section" class="section-hidden">
+        <div class="hint" style="margin-bottom:.4rem;color:#b45309;font-weight:600">⚠ Use when carer may not follow standard dilution</div>
+        <div class="g2">
+          <div>
+            <label>Scoops per formula feed</label>
+            <input type="number" id="btf-fscoops" placeholder="e.g. 4" step="0.5" oninput="updateBTFPreview()">
+          </div>
+          <div>
+            <label>Formula feeds per day</label>
+            <input type="number" id="btf-ffreq-s" placeholder="e.g. 3" oninput="updateBTFPreview()">
+          </div>
+        </div>
+        <div id="btf-scoop-preview" class="section-hidden" style="margin-top:.4rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:.45rem .65rem;font-size:.76rem;color:#1e40af"></div>
+      </div>
+    </div>
+
+    <!-- UC2: manual vol/freq or scoops for formula -->
+    <div id="btf-uc2-formula" class="section-hidden" style="margin-top:.5rem">
+      <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+        <div class="feed-btn active" id="btf-uc2-im-vol" onclick="setBTFUC2InputMethod('vol')">By volume</div>
+        <div class="feed-btn" id="btf-uc2-im-scoop" onclick="setBTFUC2InputMethod('scoop')">By scoops</div>
+      </div>
+      <div id="btf-uc2-vol-section">
+        <div class="g2">
+          <div>
+            <label>Volume per formula feed (ml)</label>
+            <input type="number" id="btf-fvol2" placeholder="e.g. 150" oninput="updateBTFPreview();btfUC2ShowWorking();updateFluidSummary()">
+          </div>
+          <div>
+            <label>Formula feeds per day</label>
+            <input type="number" id="btf-ffreq2" placeholder="e.g. 3" min="1" step="1" oninput="this.value=Math.round(this.value)||'';updateBTFPreview();btfUC2ShowWorking();generateBTFSchedule();updateFluidSummary()">
+          </div>
+        </div>
+      </div>
+      <div id="btf-uc2-scoop-section" class="section-hidden">
+        <div class="hint" style="margin-bottom:.4rem;color:#b45309;font-weight:600">⚠ Scoops-based — adjust fluid balance manually</div>
+        <div class="g2">
+          <div>
+            <label>Scoops per formula feed</label>
+            <input type="number" id="btf-fvol2-scoops" placeholder="e.g. 4" step="0.5" oninput="updateBTFPreview();btfUC2ShowWorking()">
+          </div>
+          <div>
+            <label>Formula feeds per day</label>
+            <input type="number" id="btf-ffreq2-s" placeholder="e.g. 3" min="1" step="1" oninput="this.value=Math.round(this.value)||'';updateBTFPreview();btfUC2ShowWorking();generateBTFSchedule();updateFluidSummary()">
+          </div>
+        </div>
+      </div>
+      <div id="btf-uc2-working" class="section-hidden" style="margin-top:.5rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.77rem">
+        <div style="font-weight:700;color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Combined working</div>
+        <div id="btf-uc2-working-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Schedule (UC2 only) -->
+    <div id="btf-schedule-section" class="section-hidden" style="margin-top:.8rem">
+      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Feeding Schedule</div>
+      <div class="g2" style="margin-bottom:.5rem">
+        <div>
+          <label>First feed time</label>
+          <input type="time" id="btf-start-time" value="07:00" onchange="generateBTFSchedule()">
+        </div>
+        <div>
+          <label>Feed interval</label>
+          <select id="btf-interval" onchange="generateBTFSchedule()">
+            <option value="120">Q2H (every 2 hours)</option>
+            <option value="180" selected>Q3H (every 3 hours)</option>
+            <option value="240">Q4H (every 4 hours)</option>
+            <option value="360">Q6H (every 6 hours)</option>
+          </select>
+        </div>
+      </div>
+      <div id="btf-schedule-rows"></div>
+    </div>
+
+    <!-- F&B instruction preview (UC2 only) - auto from btf-vol -->
+    <div id="btf-fnb-section" class="section-hidden" style="margin-top:.8rem">
+      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Food Service Instructions</div>
+      <div id="btf-fnb-preview" style="background:#fef9ec;border:1px solid #fcd34d;border-radius:7px;padding:.5rem .7rem;font-size:.78rem;color:#78350f;font-family:monospace;white-space:pre-wrap"></div>
+    </div>
+
+    <!-- Preview -->
+    <div id="btf-preview" class="section-hidden" style="margin-top:.7rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.78rem">
+      <div style="font-weight:700;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Daily totals preview</div>
+      <div id="btf-preview-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- USE CASE SELECTOR -->
+<div class="card" id="uc-card">
+  <div class="ct">What do you want to calculate?</div>
+  <div class="tabs">
+    <div class="tab paeds active" id="uc-tab-1" onclick="setUseCase(1)">
+      📋 Estimate current intake
+      <div style="font-size:.68rem;font-weight:400;margin-top:.15rem">Diet history / what are they getting?</div>
+    </div>
+    <div class="tab adult" id="uc-tab-2" onclick="setUseCase(2)">
+      🎯 Calculate Nutrition Support
+      <div style="font-size:.68rem;font-weight:400;margin-top:.15rem">What volume meets their targets?</div>
+    </div>
+  </div>
+
+  <!-- USE CASE 1: Intake estimation -->
+  <div id="uc1-section">
+    <label>Route of administration</label>
+    <select id="routeSelect" onchange="updateFluidsCard();updateFlushPreview()">
+      <option value="NGT">NGT (Nasogastric tube)</option>
+      <option value="OGT">OGT (Orogastric tube)</option>
+      <option value="PEG">PEG (Percutaneous endoscopic gastrostomy)</option>
+      <option value="Oral">Oral</option>
+      <option value="Oral + EN">Oral + EN</option>
+    </select>
+
+    <!-- Input method toggle -->
+    <div style="margin-top:.7rem;margin-bottom:.5rem">
+      <div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.06em">How was the feed prepared?</div>
+      <div style="display:flex;gap:.5rem">
+        <div class="feed-btn active" id="im-vol" onclick="setInputMethod('vol')">By volume</div>
+        <div class="feed-btn" id="im-scoop" onclick="setInputMethod('scoop')">By scoops</div>
+      </div>
+    </div>
+
+    <!-- Volume-based -->
+    <div id="uc1-vol-section">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.7rem">
+        <div>
+          <label>Volume per feed (ml)</label>
+          <input type="number" id="volPerFeed" placeholder="e.g. 60" oninput="updateOutputPreview();updateEBMFortInfo();updateFlushPreview();updateFluidSummary();updateVolPreview()">
+          <div class="hint" style="visibility:hidden">x</div>
+        </div>
+        <div>
+          <label>Feeds per day</label>
+          <input type="number" id="feedsPerDay" placeholder="e.g. 8" oninput="updateOutputPreview();updateEBMFortInfo();updateFlushPreview();updateFluidSummary();updateVolPreview()">
+          <div class="hint" style="visibility:hidden">x</div>
+        </div>
+        <div>
+          <label>Total vol/day (ml)</label>
+          <input type="number" id="totalVol" placeholder="auto" oninput="onTotalVolManual();updateVolPreview()" style="background:#f8fafc">
+          <div class="hint">Auto-fills from above</div>
+        </div>
+      </div>
+      <div id="vol-preview" class="section-hidden" style="margin-top:.5rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.78rem">
+        <div style="font-weight:700;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Live nutrition estimate</div>
+        <div id="vol-preview-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Scoop-based -->
+    <div id="uc1-scoop-section" class="section-hidden">
+      <div class="hint" style="margin-bottom:.5rem;color:var(--warn);font-weight:600">⚠ Use when carer may not be following standard dilution</div>
+      <div class="g2">
+        <div>
+          <label>Scoops per feed</label>
+          <input type="number" id="scoopsPerFeed" placeholder="e.g. 3" step="0.5" oninput="updateScoopPreview()">
+        </div>
+        <div>
+          <label>Feeds per day</label>
+          <input type="number" id="scoopFeedsPerDay" placeholder="e.g. 8" oninput="updateScoopPreview()">
+        </div>
+      </div>
+      <div id="scoop-preview" class="section-hidden" style="margin-top:.5rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.78rem">
+        <div style="font-weight:700;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Equivalent volume</div>
+        <div id="scoop-preview-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USE CASE 2: Feed planning -->
+  <div id="uc2-section" class="section-hidden">
+    <label>Route of administration</label>
+    <select id="routeSelect2" onchange="updateFluidsCard();updateFlushPreview()">
+      <option value="NGT">NGT (Nasogastric tube)</option>
+      <option value="OGT">OGT (Orogastric tube)</option>
+      <option value="PEG">PEG (Percutaneous endoscopic gastrostomy)</option>
+      <option value="Oral">Oral</option>
+      <option value="Oral + EN">Oral + EN</option>
+    </select>
+    <div class="hint" style="margin-top:.4rem;margin-bottom:.5rem">Enter feeds/day OR volume/feed — the other will be calculated.</div>
+    <div class="g2">
+      <div>
+        <label>Volume per feed (ml)</label>
+        <input type="number" id="uc2-vol" placeholder="calculated" oninput="uc2SolveOther('vol');updateEBMFortInfo();updateFluidSummary()" style="background:#f8fafc">
+        <div class="hint" id="uc2-vol-hint"></div>
+      </div>
+      <div>
+        <label>Feeds per day</label>
+        <input type="number" id="uc2-freq" placeholder="e.g. 8" min="1" step="1" oninput="this.value=Math.round(this.value)||'';uc2SolveOther('freq');updateEBMFortInfo();updateFluidSummary()">
+        <div class="hint" id="uc2-freq-hint"></div>
+      </div>
+    </div>
+    <div id="uc2-working" class="section-hidden" style="margin-top:.7rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.8rem;font-size:.78rem">
+      <div style="font-weight:700;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Working</div>
+      <div id="uc2-working-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FLUIDS & IV CARD -->
+<div class="card" id="fluids-card">
+  <div class="ct">Fluids & IV</div>
+
+  <!-- Water flushes — tube-fed only, shown/hidden by route -->
+  <div id="flush-section" style="display:none">
+    <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.4rem">Feed Flushes (tube feeds only)</div>
+    <div class="hint" style="margin-bottom:.5rem">Pre and post each feed. Flush volume is counted toward daily fluid intake.</div>
+    <div class="g3">
+      <div>
+        <label>Flush volume (ml)</label>
+        <input type="number" id="flush-vol" placeholder="e.g. 10" oninput="updateFlushPreview();updateFluidSummary()">
+      </div>
+      <div>
+        <label>Flushes per feed</label>
+        <input type="number" id="flush-per-feed" placeholder="2" value="2" oninput="updateFlushPreview();updateFluidSummary()">
+        <div class="hint">Pre + post = 2</div>
+      </div>
+      <div>
+        <label>Feeds per day</label>
+        <input type="number" id="flush-feeds" placeholder="auto" style="background:#f8fafc" oninput="updateFlushPreview();updateFluidSummary()">
+        <div class="hint">Auto from feed section</div>
+      </div>
+    </div>
+    <div id="flush-preview" class="section-hidden" style="margin-top:.4rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:.5rem .7rem;font-size:.77rem;color:#1e40af"></div>
+
+    <!-- Extra flushes -->
+    <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-top:.8rem;margin-bottom:.4rem">Additional Flushes</div>
+    <div class="hint" style="margin-bottom:.5rem">e.g. medication flushes or hydration flushes between feeds.</div>
+    <div class="g2">
+      <div>
+        <label>Volume per flush (ml)</label>
+        <input type="number" id="extra-flush-vol" placeholder="e.g. 30" oninput="updateFluidSummary()">
+      </div>
+      <div>
+        <label>Number per day</label>
+        <input type="number" id="extra-flush-freq" placeholder="e.g. 4" oninput="updateFluidSummary()">
+      </div>
+    </div>
+  </div>
+
+  <!-- IV fluids — all patients -->
+  <div id="iv-section" style="margin-top:.7rem">
+    <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.4rem">IV Fluids</div>
+    <div class="g3">
+      <div>
+        <label>IV fluid type</label>
+        <select id="iv-type" onchange="updateIVCalc();updateFluidSummary()">
+          <option value="">— none —</option>
+          <option value="d5">5% Dextrose</option>
+          <option value="d10">10% Dextrose</option>
+          <option value="d50">50% Dextrose</option>
+          <option value="d5ns">D5 + 0.9% NaCl</option>
+          <option value="d5half">D5 + 0.45% NaCl</option>
+          <option value="tpn">TPN (enter kcal)</option>
+          <option value="ns">0.9% NaCl (no kcal)</option>
+          <option value="rl">Ringer's Lactate</option>
+        </select>
+      </div>
+      <div>
+        <label>Rate / volume</label>
+        <input type="number" id="iv-rate" placeholder="e.g. 40" oninput="updateIVCalc();updateFluidSummary()">
+        <div class="hint">
+          <select id="iv-rate-type" onchange="updateIVCalc();updateFluidSummary()" style="font-size:.7rem;padding:.15rem .3rem;border:1px solid var(--border);border-radius:4px;margin-top:.2rem">
+            <option value="hr">ml/hr</option>
+            <option value="day">ml/day</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>TPN kcal/day</label>
+        <input type="number" id="iv-tpn-kcal" placeholder="if TPN" style="background:#f8fafc" oninput="updateIVCalc();updateFluidSummary()">
+        <div class="hint" id="iv-kcal-result" style="font-weight:600;color:var(--accent)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live fluid summary -->
+  <div id="fluid-summary" class="section-hidden" style="margin-top:.9rem;background:#f0f9ff;border:1.5px solid #7dd3fc;border-radius:8px;padding:.8rem">
+    <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#075985;margin-bottom:.5rem">Daily Fluid Summary</div>
+    <div id="fluid-summary-rows" style="font-size:.8rem;line-height:1.9"></div>
+    <div style="height:1px;background:#bae6fd;margin:.4rem 0"></div>
+    <div id="fluid-summary-total" style="font-size:.88rem;font-weight:800;color:#0369a1"></div>
+    <div id="fluid-summary-efr" style="font-size:.74rem;color:#075985;margin-top:.2rem"></div>
+  </div>
+</div>
+
+<!-- CALCULATE -->
+<button class="btn btn-primary" id="calc-btn" onclick="calculate()">Calculate intake</button>
+
+<!-- RESULTS -->
+<div id="output-section">
+  <div class="sep"></div>
+  <div class="card">
+    <div class="ct">Nutritional Summary</div>
+    <div id="results-grid" class="res-grid"></div>
+    <div id="pct-eer" class="section-hidden"></div>
+    <div id="recipe-display"></div>
+    <div id="safety-flags"></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Notes Output</div>
+    <button class="copy-btn" id="copy-btn" onclick="copyOutput()">Copy</button>
+    <div class="output-box" id="output-text"></div>
+    <button class="btn btn-secondary" onclick="clearAll()">Clear all</button>
+  </div>
+</div>
+
+<script>
+// ── Formula Data ──────────────────────────────────────────────────────────────
+const FORMULAS = {
+  paediatric: {
+    label: "Paediatric Formulas",
+    formulas: {
+      neosure: { name:"Similac NeoSure", age:"Preterm (<37wks)", kcal:79, protein:2.56, fat:3.67, cho:8.81, fibre:0, sodium:55, potassium:99, stdDilution:16.1, scoopG:5.5, stdWaterPerScoop:30, type:"powder", route:["oral","tube"], lactose:true, dha:true, mct:true, allergens:["milk","soy"], notes:"Under medical advice only. Weight-based dosing for preterm." },
+      enfamil1: { name:"Enfamil A+ Stage 1", age:"0–6m", kcal:67, protein:1.39, fat:3.6, cho:7.4, fibre:0.43, sodium:27, potassium:67, stdDilution:13.2, scoopG:4.4, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy"], notes:"70:30 whey:casein. DHA+ARA. 2'-FL." },
+      nan1box: { name:"NAN Stage 1 (box)", age:"0–6m", kcal:65.6, protein:1.24, fat:3.24, cho:7.88, fibre:0, sodium:18.12, potassium:77.64, stdDilution:12.94, scoopG:4.303, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy"], notes:"70:30 whey:casein. Algae DHA. B.Lactis probiotic." },
+      nanhmo1: { name:"NAN HMo Stage 1 (can)", age:"0–6m", kcal:67.65, protein:1.24, fat:3.64, cho:7.48, fibre:0.02, sodium:18.09, potassium:77.54, stdDilution:12.94, scoopG:4.309, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy","fish"], notes:"70:30 whey:casein. Fish oil DHA. HMO. B.Lactis probiotic." },
+      lactogen1: { name:"Lactogen Classic Stage 1", age:"0–6m", kcal:67, protein:1.4, fat:3.5, cho:7.5, fibre:0, sodium:18, potassium:78, stdDilution:13.431, scoopG:4.477, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:false, mct:false, allergens:["milk","soy"], notes:"Whey dominant. No DHA. Omega 3&6." },
+      isomil: { name:"Similac Isomil", age:"0–24m", kcal:65, protein:1.74, fat:3.55, cho:6.58, fibre:0, sodium:26, potassium:53, stdDilution:14.5, scoopG:8.7, stdWaterPerScoop:60, type:"powder", route:["oral"], lactose:false, dha:false, mct:false, allergens:["soy"], notes:"SOY-BASED. Lactose-free. No DHA." },
+      enfamil2: { name:"Enfamil A+ Stage 2", age:"6–12m", kcal:68, protein:2.2, fat:2.8, cho:8.5, fibre:0.43, sodium:28, potassium:68, stdDilution:14.4, scoopG:4.8, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy"], notes:"50:50 whey:casein. DHA+ARA. 2'-FL." },
+      nan2box: { name:"NAN Stage 2 (box)", age:"6–12m", kcal:66.35, protein:1.35, fat:3.17, cho:8.1, fibre:0, sodium:24.3, potassium:83.43, stdDilution:13.5, scoopG:4.5, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy"], notes:"50:50 whey:casein. Algae DHA. B.Lactis probiotic." },
+      nanhmo2: { name:"NAN HMo Stage 2 (can)", age:"6–12m", kcal:68.38, protein:2.05, fat:3.29, cho:7.63, fibre:0.02, sodium:24.9, potassium:85.49, stdDilution:13.833, scoopG:4.633, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy","fish"], notes:"50:50 whey:casein. Fish oil DHA. HMO. B.Lactis probiotic." },
+      lactogen2: { name:"Lactogen Classic Stage 2", age:"6–12m", kcal:67, protein:1.4, fat:3.5, cho:7.5, fibre:0, sodium:18, potassium:78, stdDilution:13.431, scoopG:4.477, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:false, mct:false, allergens:["milk","soy"], notes:"Same profile as Lactogen 1. No DHA." },
+      enfagrow3: { name:"Enfagrow A+ Pro Stage 3", age:"1–3y", kcal:75, protein:2.45, fat:2.54, cho:10.85, fibre:0.56, sodium:11.7, potassium:17.5, stdDilution:17.5, scoopG:10, stdWaterPerScoop:50, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy","fish"], notes:"DHA. MFGM. 2'-FL. 4 scoops + 200ml water." },
+      nangrow3box: { name:"Nangrow Stage 3 (box)", age:"1–5y", kcal:66.35, protein:1.35, fat:3.17, cho:8.1, fibre:0, sodium:24.3, potassium:83.43, stdDilution:13.5, scoopG:4.5, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy"], notes:"Same profile as NAN 2 box. B.Lactis probiotic." },
+      nangrow3hmo: { name:"Nangrow HMo Stage 3 (can)", age:"1–3y", kcal:66.86, protein:2.02, fat:3.06, cho:7.80, fibre:0.03, sodium:30.92, potassium:97.51, stdDilution:13.93, scoopG:4.653, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:true, mct:false, allergens:["milk","soy","fish"], notes:"40:60 whey:casein. Fish oil DHA. HMO." },
+      lactogrow3: { name:"Lactogrow Classic Stage 3", age:"1–5y", kcal:68, protein:2.0, fat:2.9, cho:8.0, fibre:0, sodium:49, potassium:104, stdDilution:14.4, scoopG:4.57, stdWaterPerScoop:30, type:"powder", route:["oral"], lactose:true, dha:false, mct:false, allergens:["milk","soy"], notes:"No DHA. Omega 3&6." },
+      pediasure: { name:"PediaSure 3+", age:"3+y", kcal:87.5, protein:2.73, fat:2.92, cho:12.53, fibre:0.31, sodium:33.9, potassium:99.1, stdDilution:19.36, scoopG:7.58, stdWaterPerScoop:38, type:"powder", route:["oral"], lactose:true, glutenFree:true, dha:true, mct:false, allergens:["milk","soy"], notes:"0.91 kcal/ml. Not sole source of nutrition." },
+      peptjnr: { name:"Peptamen Junior", age:"Paeds medical", kcal:102, protein:3.0, fat:3.8, cho:14.0, fibre:0, sodium:68, potassium:134, stdDilution:22.0, scoopG:7.9, stdWaterPerScoop:35, type:"powder", route:["oral","tube"], lactose:false, dha:false, mct:true, allergens:["milk"], notes:"Semi-elemental partially hydrolysed whey. NOT suitable for cows' milk protein allergy. 48% MCT. Multiple concentrations.", multiConc:true, concentrations:{"1.0":{kcal:102,protein:3.0,fat:3.8,cho:14.0,stdDilution:22.0,stdWaterPerScoop:35},"1.25":{kcal:128,protein:3.8,fat:4.8,cho:18.0,stdDilution:27.5,stdWaterPerScoop:28},"1.5":{kcal:153,protein:4.5,fat:5.7,cho:21.0,stdDilution:33.0,stdWaterPerScoop:23}}, peptide:true },
+      aptamilpepti: { name:"Aptamil Pepti", age:"0–12m", kcal:67, protein:1.6, fat:3.5, cho:7.0, fibre:0.6, sodium:20, potassium:81, stdDilution:15.0, scoopG:4.5, stdWaterPerScoop:30, type:"powder", route:["oral","tube"], lactose:false, glutenFree:true, dha:true, mct:false, ehf:true, cma:true, allergens:["fish"], notes:"Extensively hydrolysed whey. Hypoallergenic — for dietary management of cows' milk protein allergy. GOS/FOS (9:1) prebiotic blend. 100% whey-based. Contains Omega-3 LCPs (DHA/ARA) and nucleotides. Stools may become looser and greener in colour — expected with this formulation. Use only under medical supervision. Food for Special Medical Purposes.", supplement:false },
+      nutramigen1: { name:"Nutramigen 1 LGG", age:"0–12m", kcal:68, protein:1.9, fat:3.4, cho:7.5, fibre:0, sodium:33, potassium:73, stdDilution:13.5, scoopG:4.5, stdWaterPerScoop:30, type:"powder", route:["oral","tube"], lactose:false, glutenFree:true, dha:true, mct:false, ehf:true, cma:true, allergens:[], notes:"Extensively hydrolysed CASEIN formula. Hypoallergenic — for dietary management of cow's milk protein allergy (CMPA). Lactose-free. Contains LGG (Lactobacillus rhamnosus GG) probiotic. DHA+ARA. Standard concentration 13.5% (1 level scoop 4.5g per 30ml water; do not pack scoop). Feeding guide: 0–2wk 3 scoops/90ml, 2–4wk 4/120ml, 1–2m 5/150ml, 2–4m 6/180ml, 4–6m 7/210ml. Use under medical supervision. Food for Special Medical Purposes. Values from Thai-market can label.", supplement:false }
+    }
+  },
+  adult: {
+    label: "Adult Formulas",
+    formulas: {
+      ensureplus: { name:"Ensure Plus", age:"Adults", kcal:102, protein:4.52, fat:2.83, cho:14.3, fibre:0.84, sodium:65, potassium:136, stdDilution:23.8, scoopG:9.17, stdWaterPerScoop:31.7, type:"powder", route:["oral","tube"], lactose:false, glutenFree:true, dha:false, mct:false, allergens:["milk","soy"], notes:"Lactose-free. Gluten-free. Standard: 6 scoops (55g) + 190ml water = 245ml." },
+      ensuredm: { name:"Ensure Diabetes Care", age:"Adults DM", kcal:98.3, protein:4.78, fat:3.48, cho:10.07, fibre:3.86, sodium:77.1, potassium:135.2, stdDilution:21.94, scoopG:8.667, stdWaterPerScoop:33.33, type:"powder", route:["oral","tube"], lactose:false, glutenFree:true, dha:false, mct:false, allergens:["milk","soy"], notes:"Low GI. Zero added sucrose. High fibre. Formerly Glucerna SR. Standard: 6 scoops (52g) + 200ml water = 237ml." },
+      nutrican: { name:"Nutrican", age:"Adults/Oncology", kcal:134.6, protein:7.69, fat:3.46, cho:18.46, fibre:1.15, sodium:25, potassium:73, stdDilution:31.15, scoopG:null, stdWaterPerScoop:null, sachetG:81, sachetWater:200, sachetVolume:260, type:"sachet", route:["oral","tube"], lactose:false, dha:true, mct:false, allergens:["milk","soy","fish"], notes:"1 sachet (81g) + 200ml water = 260ml. High energy. BCAA. EPA+DHA. Caution renal impairment." },
+      diabetasol: { name:"Diabetasol", age:"Adults DM", kcal:104, protein:4.0, fat:2.83, cho:15.6, fibre:1.44, sodium:43.2, potassium:91.2, stdDilution:24.0, scoopG:15, stdWaterPerScoop:50, type:"powder", route:["oral"], lactose:false, dha:false, mct:false, allergens:["milk","soy"], notes:"Isomaltulose CHO. Low GI. Cholesterol free. Standard: 4 scoops (60g) + 200ml water = 250ml (260 kcal)." },
+      protinexorig: { name:"Protinex Original", age:"Adults", kcal:null, protein:34, fat:0.5, cho:53.3, fibre:null, sodium:245, potassium:null, stdDilution:null, scoopG:15, stdWaterPerScoop:null, type:"powder", route:["oral"], lactose:false, dha:false, mct:false, allergens:["peanut","milk","soy","wheat"], notes:"PROTEIN SUPPLEMENT — NOT complete formula. CONTAINS PEANUT. 30g serving = 106 kcal, 10.2g protein.", supplement:true },
+      protinexdm: { name:"Protinex Diabetes Care", age:"Adults DM", kcal:null, protein:30, fat:1.3, cho:45, fibre:15, sodium:340, potassium:950, stdDilution:null, scoopG:12.5, stdWaterPerScoop:null, type:"powder", route:["oral"], lactose:false, dha:false, mct:false, allergens:["milk","soy","wheat"], notes:"PROTEIN SUPPLEMENT — NOT complete formula. Mix with 200ml milk. High fibre.", supplement:true },
+      kabipro: { name:"Kabi Pro", age:"Adults", kcal:39.8, protein:4.58, fat:0.33, cho:4.9, fibre:0.55, sodium:25.1, potassium:74.7, stdDilution:10.9, scoopG:12, stdWaterPerScoop:100, type:"powder", route:["oral"], lactose:false, dha:false, mct:false, allergens:["milk"], notes:"100% whey protein supplement. NOT complete formula. 24g + 200ml water.", supplement:true },
+      laminorespi: { name:"Lamino Respi", age:"Adults (respiratory)", kcal:146, protein:6.3, fat:7.65, cho:13.05, fibre:0, sodium:93, potassium:123, stdDilution:30.0, scoopG:15, stdWaterPerScoop:50, type:"powder", route:["oral"], lactose:false, glutenFree:true, dha:false, mct:false, allergens:["milk","soy"], notes:"Food for respiratory care. High fat (47% energy), low CHO (35%) formula — designed to reduce respiratory quotient (RQ). Contains NAC (N-Acetyl Cysteine) and Vitamin C as anti-inflammatory nutrients. Low GI. No added sugars. Contains sucralose. 2 heaped scoops (30g) in 100ml milk or water once daily. NOT for use in pregnancy, lactation, children under 5, adolescents or elderly except under medical advice. Processed in facility handling oat, wheat and nut.", supplement:false },
+      peptamen: { name:"Peptamen", age:"Adults ≥10y", kcal:103, protein:4.0, fat:4.0, cho:12.9, fibre:0, sodium:81.4, potassium:149.6, stdDilution:22.0, scoopG:7.9, stdWaterPerScoop:30, type:"powder", route:["oral","tube"], lactose:false, glutenFree:true, dha:false, mct:true, allergens:["milk","soy"], notes:"Semi-elemental partially hydrolysed whey peptides. NOT suitable for cows' milk protein allergy. 70% of fat as MCT. For impaired GI function, fat malabsorption, critically ill. Suitable for lactose intolerance. Standard: 7 scoops (55g) + 210ml water = 250ml. High-energy: 10.5 scoops (83g) + 195ml water = 250ml (375 kcal). Osmolarity 349 mOsm/L. Only suitable from 10 years onwards. Use under medical supervision.", supplement:false, multiConc:true, concentrations:{"1.0":{kcal:103,protein:4.0,fat:4.0,cho:12.9,stdDilution:22.0,stdWaterPerScoop:30},"1.5":{kcal:150,protein:6.04,fat:6.04,cho:19.5,stdDilution:33.2,stdWaterPerScoop:19}}, peptide:true }
+    }
+  }
+};
+
+const EBM_REF = { kcal:67, protein:1.0, fat:4.2, cho:7.3, name:"EBM" };
+
+const EBM_FORT = {
+  std:  { kcal:67,  protein:1.0, fat:4.2, cho:7.3, tsp:0, label:"Plain EBM" },
+  x125: { kcal:84,  protein:1.4, fat:5.1, cho:9.0, tsp:1, label:"EBM + 1 tsp/80ml (84 kcal/100ml)" },
+  x15:  { kcal:100, protein:1.7, fat:6.0, cho:10.7, tsp:2, label:"EBM + 2 tsp/80ml (100 kcal/100ml)" }
+};
+
+// Shaw, 2015 fortification limits
+const SAFETY = {
+  "0-6m":  { label:"<6 months",   protPctMin:7,  protPctMax:12, choMin:10, choMax:12, fatMin:5, fatMax:6 },
+  "6-12m": { label:"6–12 months", protPctMin:7,  protPctMax:12, choMin:12, choMax:15, fatMin:5, fatMax:6 },
+  "1-2y":  { label:"1–2 years",   protPctMin:5,  protPctMax:15, choMin:15, choMax:20, fatMin:null, fatMax:7 },
+  "older": { label:">2 years",    protPctMin:5,  protPctMax:15, choMin:20, choMax:30, fatMin:null, fatMax:7 }
+};
+
+// ── Settings: Pharmacies & Availability ──────────────────────────────────────
+const STORAGE_KEY = 'formulaCalc_settings_v1';
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : { pharmacies: ['ADK Pharmacy', 'STO Pharmacy', 'Nalahiya Pharmacy'], availability: {} };
+  } catch(e) { return { pharmacies: [], availability: {} }; }
+}
+
+function saveSettingsData(data) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+let settingsData = loadSettings();
+
+function openSettings() {
+  renderSettingsPanel();
+  document.getElementById('settings-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeSettingsIfBg(e) {
+  if(e.target === document.getElementById('settings-overlay')) closeSettings();
+}
+
+function renderSettingsPanel() {
+  // Pharmacy list
+  const phList = document.getElementById('pharmacy-list');
+  phList.innerHTML = settingsData.pharmacies.map((ph, i) => `
+    <div class="pharmacy-row">
+      <input type="text" value="${ph}" onchange="settingsData.pharmacies[${i}]=this.value;renderFormulaAvailList()">
+      <button class="btn-remove-ph" onclick="removePharmacy(${i})">Remove</button>
+    </div>`).join('');
+
+  renderFormulaAvailList();
+}
+
+function renderFormulaAvailList() {
+  const list = document.getElementById('formula-avail-list');
+  if(!list) return;
+  const allFormulas = [
+    ...Object.entries(FORMULAS.paediatric.formulas),
+    ...Object.entries(FORMULAS.adult.formulas)
+  ];
+  list.innerHTML = allFormulas.map(([key, f]) => {
+    const avail = settingsData.availability[key] || { pharmacies: [], flavours: '' };
+    const phChecks = settingsData.pharmacies.map(ph => {
+      const checked = avail.pharmacies.includes(ph);
+      return `<label class="ph-check-label ${checked?'checked':''}" onclick="togglePharmacy('${key}','${ph}',this)">
+        <input type="checkbox" ${checked?'checked':''} style="display:none"> ${ph}
+      </label>`;
+    }).join('');
+    return `
+      <div class="formula-avail-row">
+        <div class="formula-avail-name">${f.name} <span style="color:var(--muted);font-weight:400;font-size:.72rem">${f.age}</span></div>
+        <div class="ph-checks">${phChecks || '<span style="color:var(--muted);font-size:.75rem">Add pharmacies above first</span>'}</div>
+        <input class="flavour-input" type="text" placeholder="Flavours (e.g. Vanilla, Chocolate, Strawberry)" 
+          value="${avail.flavours||''}" 
+          onchange="setFlavours('${key}',this.value)"
+          oninput="setFlavours('${key}',this.value)">
+      </div>`;
+  }).join('');
+}
+
+function togglePharmacy(formulaKey, pharmacy, labelEl) {
+  if(!settingsData.availability[formulaKey]) settingsData.availability[formulaKey] = { pharmacies: [], flavours: '' };
+  const arr = settingsData.availability[formulaKey].pharmacies;
+  const idx = arr.indexOf(pharmacy);
+  if(idx === -1) { arr.push(pharmacy); labelEl.classList.add('checked'); }
+  else { arr.splice(idx,1); labelEl.classList.remove('checked'); }
+}
+
+function setFlavours(formulaKey, val) {
+  if(!settingsData.availability[formulaKey]) settingsData.availability[formulaKey] = { pharmacies: [], flavours: '' };
+  settingsData.availability[formulaKey].flavours = val;
+}
+
+function addPharmacy() {
+  const input = document.getElementById('new-pharmacy-input');
+  const name = input.value.trim();
+  if(!name) return;
+  if(settingsData.pharmacies.includes(name)) { input.value=''; return; }
+  settingsData.pharmacies.push(name);
+  input.value = '';
+  renderSettingsPanel();
+}
+
+function removePharmacy(idx) {
+  const ph = settingsData.pharmacies[idx];
+  settingsData.pharmacies.splice(idx,1);
+  // Remove from all availability entries
+  Object.values(settingsData.availability).forEach(a => {
+    const i = a.pharmacies?.indexOf(ph);
+    if(i > -1) a.pharmacies.splice(i,1);
+  });
+  renderSettingsPanel();
+}
+
+function saveSettings() {
+  saveSettingsData(settingsData);
+  closeSettings();
+  // Refresh formula info if one is selected
+  if(selectedFormula) renderFormulaInfo(selectedFormula, 'formula-info-box', key);
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let patientType = 'paeds';
+let feedType = 'formula';
+let selectedFormula = null;
+let formulaConc = 'std';
+let ebmFortLevel = 'std';
+let peptConc = '1.0';
+let mixedFormula = null;
+let useCase = 1; // 1=intake estimation, 2=feed planning
+let inputMethod = 'vol'; // 'vol' or 'scoop'
+let btfDensity = 'std';
+let btfFormula = null;
+
+const BTF_PRESETS = {
+  low:    { kcal:75,  prot:2.5, label:'Low density (~0.75 kcal/ml)',     note:'Vegetable-heavy blend, well diluted. Common when tube bore is small or tolerance is being established.' },
+  std:    { kcal:100, prot:3.5, label:'Standard (~1.0 kcal/ml)',         note:'Balanced whole food blend — rice/cereal, meat or egg, vegetables, milk or oil.' },
+  high:   { kcal:130, prot:4.5, label:'High density (~1.3 kcal/ml)',     note:'Fat-enriched blend — avocado, nut butter, oil, cream or full-fat dairy added.' },
+  custom: { kcal:null, prot:null, label:'Custom (recipe analysed)',       note:'Enter values from your own recipe analysis below.' }
+};
+
+// ── IV / Flush constants ─────────────────────────────────────────────────────
+const IV_KCAL = { d5:17, d10:34, d50:170, d5ns:17, d5half:17, tpn:0, ns:0, rl:0 };
+const IV_NAMES = {d5:'5% Dextrose',d10:'10% Dextrose',d50:'50% Dextrose',
+  d5ns:'D5 + 0.9% NaCl',d5half:'D5 + 0.45% NaCl',tpn:'TPN',ns:'0.9% NaCl',rl:"Ringer's Lactate"};
+
+function isTubeFed() {
+  const oralOnly = (v) => v === 'Oral' || v === '';
+  const r1 = document.getElementById('routeSelect')?.value || '';
+  const r2 = document.getElementById('routeSelect2')?.value || '';
+  const r3 = document.getElementById('btfRouteSelect')?.value || '';
+  // Show flushes for any non-Oral route that is actually selected
+  return (!oralOnly(r1)) || (!oralOnly(r2)) || (!oralOnly(r3));
+}
+
+function updateFluidsCard() {
+  const tubeFed = isTubeFed();
+  const flush = document.getElementById('flush-section');
+  if(flush) flush.style.display = tubeFed ? '' : 'none';
+  // Sync feeds/day from whichever input is active
+  syncFlushFeeds();
+  updateFlushPreview();
+  updateIVCalc();
+}
+
+function syncFlushFeeds() {
+  let freq = 0;
+  if(feedType==='btf') {
+    const bf = parseFloat(document.getElementById('btf-freq')?.value)||0;
+    const {fFreq} = getBTFFormulaVolFreq ? getBTFFormulaVolFreq() : {fFreq:0};
+    freq = bf + fFreq;
+  } else if(useCase===2) freq = parseFloat(document.getElementById('uc2-freq')?.value)||0;
+  else freq = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
+  const ff = document.getElementById('flush-feeds');
+  if(ff && freq) ff.placeholder = String(freq);
+  updateFluidSummary();
+}
+
+function updateFlushPreview() {
+  syncFlushFeeds();
+  const flushVol  = parseFloat(document.getElementById('flush-vol')?.value) || 0;
+  const perFeed   = parseFloat(document.getElementById('flush-per-feed')?.value) || 2;
+  let freq = parseFloat(document.getElementById('flush-feeds')?.value) || 0;
+  if(!freq) {
+    if(feedType==='btf') freq = parseFloat(document.getElementById('btf-freq')?.value)||0;
+    else if(useCase===2) freq = parseFloat(document.getElementById('uc2-freq')?.value)||0;
+    else freq = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
+  }
+  const preview = document.getElementById('flush-preview');
+  if(!preview) return;
+  if(!flushVol || !freq) { preview.classList.add('section-hidden'); return; }
+  const totalFlush = flushVol * perFeed * freq;
+  preview.classList.remove('section-hidden');
+  preview.innerHTML = `${flushVol}ml × ${perFeed} flushes × ${freq} feeds = <strong>${totalFlush}ml</strong> flush fluid/day`
+    + `<br>Pre-feed: ${flushVol}ml · Post-feed: ${flushVol}ml per feed`;
+}
+
+function updateIVCalc() {
+  const type = document.getElementById('iv-type')?.value;
+  const rate = parseFloat(document.getElementById('iv-rate')?.value) || 0;
+  const rateType = document.getElementById('iv-rate-type')?.value || 'hr';
+  const tpnKcal = parseFloat(document.getElementById('iv-tpn-kcal')?.value) || 0;
+  const result = document.getElementById('iv-kcal-result');
+  const tpnInput = document.getElementById('iv-tpn-kcal');
+  if(!result) return;
+  if(tpnInput) { tpnInput.style.background = type==='tpn' ? '#fff' : '#f8fafc'; tpnInput.readOnly = type!=='tpn'; }
+  if(!type || !rate) { result.textContent=''; return; }
+  const volDay = rateType==='hr' ? rate*24 : rate;
+  const kcalDay = type==='tpn' ? tpnKcal : Math.round(IV_KCAL[type] * volDay / 100);
+  let txt = kcalDay>0 ? `≈ ${kcalDay} kcal/day` : 'No kcal (electrolyte only)';
+  txt += `  ·  ${Math.round(volDay)}ml/day`;
+  result.textContent = txt;
+}
+
+function updateFluidSummary() {
+  const summary   = document.getElementById('fluid-summary');
+  const rowsEl    = document.getElementById('fluid-summary-rows');
+  const totalEl   = document.getElementById('fluid-summary-total');
+  const efrEl     = document.getElementById('fluid-summary-efr');
+  if(!summary) return;
+
+  const fd = getFluidData();
+
+  // Feed volume — always compute live from inputs
+  let feedVol = 0;
+  if(feedType==='btf') {
+    const bVol  = parseFloat(document.getElementById('btf-vol')?.value)||0;
+    const bFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
+    const {fVol, fFreq} = getBTFFormulaVolFreq();
+    feedVol = (bVol*bFreq) + (fVol*fFreq);
+  } else if(useCase===2) {
+    const v = parseFloat(document.getElementById('uc2-vol')?.value)||0;
+    const f = parseFloat(document.getElementById('uc2-freq')?.value)||0;
+    feedVol = v * f;
+  } else {
+    const v = parseFloat(document.getElementById('volPerFeed')?.value)||0;
+    const f = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
+    feedVol = v * f;
+  }
+
+  const rows = [];
+  let total = 0;
+
+  if(feedVol)              { rows.push(`Feeds: <strong>${Math.round(feedVol)}ml</strong>`);           total += feedVol; }
+  if(fd.flushTotal)        { rows.push(`Feed flushes: <strong>${Math.round(fd.flushTotal)}ml</strong>`);   total += fd.flushTotal; }
+  if(fd.extraFlushTotal)   { rows.push(`Additional flushes: <strong>${Math.round(fd.extraFlushTotal)}ml</strong>`); total += fd.extraFlushTotal; }
+  if(fd.ivVolDay)          { rows.push(`IV (${fd.ivName||'fluid'}): <strong>${Math.round(fd.ivVolDay)}ml</strong>`); total += fd.ivVolDay; }
+
+  if(!rows.length) { summary.classList.add('section-hidden'); return; }
+
+  summary.classList.remove('section-hidden');
+  rowsEl.innerHTML = rows.join('<br>');
+  totalEl.textContent = `Total: ${Math.round(total)}ml/day`;
+
+  if(fd.fluidTarget) {
+    const pct = Math.round(total/fd.fluidTarget*100);
+    const rem = Math.round(fd.fluidTarget - total);
+    const colour = pct>=90 ? '#166534' : pct>=70 ? '#92400e' : '#9f1239';
+    efrEl.innerHTML = `<span style="color:${colour};font-weight:700">${pct}% of EFR (${fd.fluidTarget}ml)</span>${rem>0?' · '+rem+'ml remaining':''}`;
+  } else {
+    efrEl.textContent = '';
+  }
+}
+
+function updateEFR() {
+  const wt = parseFloat(document.getElementById('weight')?.value);
+  const age = document.getElementById('ageGroup')?.value;
+  const display = document.getElementById('efr-display');
+  if(!display) return;
+  if(!wt || !age) { display.classList.add('section-hidden'); return; }
+  let efr = null, efrLabel = '';
+  if(age==='adult') {
+    efr = [Math.round(wt*30), Math.round(wt*35)];
+    efrLabel = '30–35ml/kg (NEMO)';
+  } else if(age==='preterm') {
+    efr = [Math.round(wt*140), Math.round(wt*160)];
+    efrLabel = '140–160ml/kg (preterm)';
+  } else if(wt<=10) {
+    efr = [Math.round(wt*100), Math.round(wt*100)];
+    efrLabel = '100ml/kg (Holliday-Segar)';
+  } else if(wt<=20) {
+    efr = [Math.round(1000+(wt-10)*50), Math.round(1000+(wt-10)*50)];
+    efrLabel = '1000 + 50ml/kg >10kg (Holliday-Segar)';
+  } else {
+    efr = [Math.round(1500+(wt-20)*20), Math.round(1500+(wt-20)*20)];
+    efrLabel = '1500 + 20ml/kg >20kg (Holliday-Segar)';
+  }
+  display.classList.remove('section-hidden');
+  const range = efr[0]===efr[1] ? efr[0] : `${efr[0]}–${efr[1]}`;
+  display.innerHTML = `<strong>Estimated fluid requirement (EFR):</strong> ${range}ml/day (${efrLabel})<br><span style="font-size:.7rem;font-weight:400;opacity:.8">Holliday-Segar (paeds) · NEMO 30–35ml/kg (adults) · Override in field below if prescribed</span>`;
+}
+
+function getFluidData() {
+  const tubeFed = isTubeFed();
+  const flushVol   = parseFloat(document.getElementById('flush-vol')?.value) || 0;
+  const flushPer   = parseFloat(document.getElementById('flush-per-feed')?.value) || 2;
+  let flushFreq = parseFloat(document.getElementById('flush-feeds')?.value) || 0;
+  if(!flushFreq) {
+    if(feedType==='btf') flushFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
+    else if(useCase===2) flushFreq = parseFloat(document.getElementById('uc2-freq')?.value)||0;
+    else flushFreq = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
+  }
+  const flushTotal = tubeFed ? flushVol * flushPer * flushFreq : 0;
+
+  const extraFlushVol  = parseFloat(document.getElementById('extra-flush-vol')?.value) || 0;
+  const extraFlushFreq = parseFloat(document.getElementById('extra-flush-freq')?.value) || 0;
+  const extraFlushTotal = tubeFed ? extraFlushVol * extraFlushFreq : 0;
+
+  const manualTarget = parseFloat(document.getElementById('fluid-target')?.value) || null;
+  const wt  = parseFloat(document.getElementById('weight')?.value) || null;
+  const age = document.getElementById('ageGroup')?.value || '';
+  let autoFluid = null;
+  if(wt && age) {
+    if(age==='adult') autoFluid = Math.round(wt*30);
+    else if(age==='preterm') autoFluid = Math.round(wt*140);
+    else if(wt<=10) autoFluid = Math.round(wt*100);
+    else if(wt<=20) autoFluid = Math.round(1000+(wt-10)*50);
+    else autoFluid = Math.round(1500+(wt-20)*20);
+  }
+  const fluidTarget = manualTarget || autoFluid;
+
+  const ivType = document.getElementById('iv-type')?.value || '';
+  const ivRate = parseFloat(document.getElementById('iv-rate')?.value) || 0;
+  const ivRateType = document.getElementById('iv-rate-type')?.value || 'hr';
+  const ivTpnKcal = parseFloat(document.getElementById('iv-tpn-kcal')?.value) || 0;
+  const ivVolDay = ivRate ? (ivRateType==='hr' ? ivRate*24 : ivRate) : 0;
+  const ivKcalDay = ivType==='tpn' ? ivTpnKcal : (ivType && ivRate ? Math.round(IV_KCAL[ivType]*ivVolDay/100) : 0);
+
+  return { tubeFed, flushVol, flushPer, flushFreq, flushTotal,
+           extraFlushVol, extraFlushFreq, extraFlushTotal,
+           fluidTarget, manualTarget, autoFluid,
+           ivType, ivRate, ivRateType, ivVolDay, ivKcalDay,
+           ivName: IV_NAMES[ivType]||'' };
+}
+
+// ── BTF Use Case ──────────────────────────────────────────────────────────────
+let btfUseCase = 1;
+
+let btfInputMethod = 'vol';   // UC1 formula input method
+let btfUC2InputMethod = 'vol'; // UC2 formula input method
+
+function setBTFInputMethod(m) {
+  btfInputMethod = m;
+  document.getElementById('btf-im-vol').classList.toggle('active', m==='vol');
+  document.getElementById('btf-im-scoop').classList.toggle('active', m==='scoop');
+  document.getElementById('btf-im-vol-section').classList.toggle('section-hidden', m!=='vol');
+  document.getElementById('btf-im-scoop-section').classList.toggle('section-hidden', m!=='scoop');
+  updateBTFPreview();
+}
+
+function setBTFUC2InputMethod(m) {
+  btfUC2InputMethod = m;
+  document.getElementById('btf-uc2-im-vol').classList.toggle('active', m==='vol');
+  document.getElementById('btf-uc2-im-scoop').classList.toggle('active', m==='scoop');
+  document.getElementById('btf-uc2-vol-section').classList.toggle('section-hidden', m!=='vol');
+  document.getElementById('btf-uc2-scoop-section').classList.toggle('section-hidden', m!=='scoop');
+  updateBTFPreview();
+  btfUC2ShowWorking();
+}
+
+function setBTFUseCase(uc) {
+  btfUseCase = uc;
+  document.getElementById('btf-uc-tab-1').classList.toggle('active', uc===1);
+  document.getElementById('btf-uc-tab-2').classList.toggle('active', uc===2);
+  document.getElementById('btf-uc1-formula').classList.toggle('section-hidden', uc!==1);
+  document.getElementById('btf-uc2-formula').classList.toggle('section-hidden', uc!==2);
+  document.getElementById('btf-schedule-section').classList.toggle('section-hidden', uc!==2);
+  document.getElementById('btf-fnb-section').classList.toggle('section-hidden', uc!==2);
+  document.getElementById('btf-meal-names').classList.toggle('section-hidden', uc!==2);
+  document.getElementById('calc-btn').textContent = uc===1 ? 'Calculate nutrition support' : 'Calculate nutrition support';
+  if(uc===2) { renderBTFMealInputs(); generateBTFSchedule(); btfUC2ShowWorking(); updateFnBPreview(); }
+  updateBTFPreview();
+}
+
+function getBTFFormulaVolFreq() {
+  // Returns {fVol, fFreq, scoopBased} for whichever UC/method is active
+  if(btfUseCase===1) {
+    if(btfInputMethod==='scoop') {
+      const s = parseFloat(document.getElementById('btf-fscoops')?.value)||0;
+      const f = parseFloat(document.getElementById('btf-ffreq-s')?.value)||0;
+      const v = btfFormula && s ? Math.round(s * btfFormula.scoopG / (btfFormula.stdDilution/100)) : 0;
+      return { fVol: v, fFreq: f, scoopBased: true, scoops: s };
+    }
+    return { fVol: parseFloat(document.getElementById('btf-fvol')?.value)||0,
+             fFreq: parseFloat(document.getElementById('btf-ffreq')?.value)||0, scoopBased: false };
+  } else {
+    if(btfUC2InputMethod==='scoop') {
+      const s = parseFloat(document.getElementById('btf-fvol2-scoops')?.value)||0;
+      const f = parseFloat(document.getElementById('btf-ffreq2-s')?.value)||0;
+      const v = btfFormula && s ? Math.round(s * btfFormula.scoopG / (btfFormula.stdDilution/100)) : 0;
+      return { fVol: v, fFreq: f, scoopBased: true, scoops: s };
+    }
+    return { fVol: parseFloat(document.getElementById('btf-fvol2')?.value)||0,
+             fFreq: parseFloat(document.getElementById('btf-ffreq2')?.value)||0, scoopBased: false };
+  }
+}
+
+function btfUC2ShowWorking() {
+  const btfKcal = parseFloat(document.getElementById('btf-kcal').value)||0;
+  const btfProt = parseFloat(document.getElementById('btf-prot').value)||0;
+  const btfVol  = parseFloat(document.getElementById('btf-vol').value)||0;
+  const btfFreq = parseFloat(document.getElementById('btf-freq').value)||0;
+  const {fVol, fFreq, scoopBased, scoops} = getBTFFormulaVolFreq();
+  const targetKcal = parseFloat(document.getElementById('targetKcal')?.value)||null;
+  const targetProt = parseFloat(document.getElementById('targetProt')?.value)||null;
+  const wk = document.getElementById('btf-uc2-working');
+  const wkt = document.getElementById('btf-uc2-working-text');
+  if(!wk || !wkt) return;
+  if(!btfKcal || !btfVol || !btfFreq) { wk.classList.add('section-hidden'); return; }
+
+  const btfKcalDay = btfKcal * btfVol * btfFreq / 100;
+  const btfProtDay = btfProt * btfVol * btfFreq / 100;
+  let w = `BTF:    ${btfVol}ml × ${btfFreq} feeds = ${btfVol*btfFreq}ml → ${btfKcalDay.toFixed(1)} kcal, ${btfProtDay.toFixed(1)}g protein
+`;
+
+  if(btfFormula && fVol && fFreq) {
+    const fKcalDay = btfFormula.kcal * fVol * fFreq / 100;
+    const fProtDay = btfFormula.protein * fVol * fFreq / 100;
+    if(scoopBased && scoops) w += `Formula: ${scoops} scoops/feed → ~${fVol}ml × ${fFreq} feeds = ${fVol*fFreq}ml → ${fKcalDay.toFixed(1)} kcal, ${fProtDay.toFixed(1)}g protein
+`;
+    else w += `Formula: ${fVol}ml × ${fFreq} feeds = ${fVol*fFreq}ml → ${fKcalDay.toFixed(1)} kcal, ${fProtDay.toFixed(1)}g protein
+`;
+    w += `────────────────────────────────────────
+`;
+    const totKcal = btfKcalDay + fKcalDay;
+    const totProt = btfProtDay + fProtDay;
+    w += `Total:  ${totKcal.toFixed(1)} kcal, ${totProt.toFixed(1)}g protein/day
+`;
+    if(targetKcal) w += `        ${Math.round(totKcal/targetKcal*100)}% EER`;
+    if(targetProt) w += `  ·  ${Math.round(totProt/targetProt*100)}% EPR`;
+    if(scoopBased) w += `
+⚠ Scoops used — fluid volume is approximate. Adjust flush/IV to meet EFR.`;
+  } else if(targetKcal) {
+    const remaining = targetKcal - btfKcalDay;
+    w += `Remaining to target: ${remaining.toFixed(1)} kcal
+→ Select formula and enter formula feeds above`;
+  }
+  wkt.textContent = w;
+  wk.classList.remove('section-hidden');
+  updateFnBPreview();
+}
+
+function updateFnBPreview() {
+  const el = document.getElementById('btf-fnb-preview');
+  if(!el) return;
+  const btfVol = document.getElementById('btf-vol')?.value || '?';
+  const btfFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
+  el.textContent = `Food Service Instructions\nDiet code: ${btfVol}ml Blended Tube Feeds\nDiet  B: ${btfVol}ml  L: ${btfVol}ml  D: ${btfVol}ml`;
+}
+
+// ── BTF Schedule generation ───────────────────────────────────────────────────
+function renderBTFMealInputs() {
+  // Render meal name inputs separately so they don't re-render on each keystroke
+  const btfFreq = parseInt(document.getElementById('btf-freq')?.value)||0;
+  const container = document.getElementById('btf-meal-inputs');
+  if(!container || !btfFreq) return;
+  // Only re-render if count changed
+  const existing = container.querySelectorAll('.btf-meal-name-input');
+  if(existing.length === btfFreq) return; // same count — don't re-render, preserve text
+  const placeholders = ['Oats porridge with egg','Rice porridge with chicken','Rice porridge with fish','Congee with vegetables'];
+  container.innerHTML = Array.from({length:btfFreq},(_,i)=>`
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+      <span style="font-size:.75rem;font-weight:600;color:var(--muted);min-width:6rem">BTF Feed ${i+1}</span>
+      <input class="btf-meal-name-input" type="text" placeholder="${placeholders[i%4]||'Meal description'}"
+        style="flex:1;padding:.35rem .55rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem"
+        onchange="generateBTFSchedule()">
+    </div>`).join('');
+}
+
+function generateBTFSchedule() {
+  const btfFreq  = parseInt(document.getElementById('btf-freq')?.value)||0;
+  const {fFreq}  = getBTFFormulaVolFreq();
+  const startStr = document.getElementById('btf-start-time')?.value || '07:00';
+  const intervalMin = parseInt(document.getElementById('btf-interval')?.value)||180;
+  const container = document.getElementById('btf-schedule-rows');
+  if(!container) return;
+
+  const totalFeeds = btfFreq + fFreq;
+  if(!totalFeeds) { container.innerHTML=''; return; }
+
+  // Build slots purely from start time + interval, BTF feeds evenly distributed
+  const [startH, startM] = startStr.split(':').map(Number);
+  const slots = [];
+  let mc = startH*60+startM;
+  for(let i=0;i<totalFeeds;i++) { slots.push({min:mc,type:null}); mc+=intervalMin; }
+
+  // Distribute BTF slots evenly across total feeds
+  const btfIndices = new Set();
+  if(btfFreq >= totalFeeds) {
+    slots.forEach((_,i) => btfIndices.add(i));
+  } else {
+    // Space them evenly
+    for(let i=0;i<btfFreq;i++) {
+      const idx = Math.round(i * totalFeeds / btfFreq);
+      btfIndices.add(Math.min(idx, totalFeeds-1));
+    }
+    // Fill any gaps if rounding caused duplicates
+    let btfCount = btfIndices.size;
+    for(let i=0;i<totalFeeds && btfCount<btfFreq;i++) {
+      if(!btfIndices.has(i)) { btfIndices.add(i); btfCount++; }
+    }
+  }
+  slots.forEach((s,i) => s.type = btfIndices.has(i)?'btf':'formula');
+
+  const mealInputs = document.querySelectorAll('.btf-meal-name-input');
+  const btfVol = document.getElementById('btf-vol')?.value||'?';
+  const {fVol} = getBTFFormulaVolFreq();
+  let btfIdx=0;
+
+  container.innerHTML = slots.map(s => {
+    const t = minToTime(s.min);
+    const isBTF = s.type==='btf';
+    const mealName = isBTF ? (mealInputs[btfIdx]?.value||`BTF Feed ${btfIdx+1}`) : '';
+    if(isBTF) btfIdx++;
+    const label = isBTF
+      ? `<strong style="color:#166534">BTF</strong> — ${mealName||'(enter meal name in fields above)'}`
+      : `<strong style="color:var(--accent)">${btfFormula?.name||'Formula'}</strong>`;
+    return `<div style="display:flex;align-items:baseline;gap:.6rem;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.78rem">
+      <span style="min-width:5.5rem;font-weight:700;color:var(--muted)">${t}</span>
+      <span>${label}</span>
+      <span style="margin-left:auto;color:var(--muted)">${isBTF?btfVol:(fVol||'?')}ml</span>
+    </div>`;
+  }).join('');
+}
+
+function minToTime(mins) {
+  const h = Math.floor(mins/60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function setBTFDensity(level) {
+  btfDensity = level;
+  ['low','std','high','custom'].forEach(l => {
+    document.getElementById(`btf-${l}`)?.classList.toggle('active', l===level);
+  });
+  const preset = BTF_PRESETS[level];
+  if(preset.kcal !== null) {
+    document.getElementById('btf-kcal').value = preset.kcal;
+    document.getElementById('btf-prot').value = preset.prot;
+  } else {
+    document.getElementById('btf-kcal').value = '';
+    document.getElementById('btf-prot').value = '';
+  }
+  document.getElementById('btf-note').textContent = preset.note;
+  updateBTFPreview();
+}
+
+function onBTFFormulaChange() {
+  const key = document.getElementById('btfFormulaSelect').value;
+  const group = patientType === 'paeds' ? 'paediatric' : 'adult';
+  btfFormula = key ? FORMULAS[group].formulas[key] : null;
+  renderFormulaInfo(btfFormula, 'btf-formula-info', key);
+  updateBTFPreview();
+}
+
+function updateBTFPreview() {
+  const btfKcal = parseFloat(document.getElementById('btf-kcal').value)||0;
+  const btfProt = parseFloat(document.getElementById('btf-prot').value)||0;
+  const btfVol  = parseFloat(document.getElementById('btf-vol').value)||0;
+  const btfFreq = parseFloat(document.getElementById('btf-freq').value)||0;
+  const {fVol, fFreq, scoopBased, scoops} = getBTFFormulaVolFreq();
+  // Scoop preview for UC1
+  if(btfInputMethod==='scoop' && scoops && btfFormula) {
+    const sp = document.getElementById('btf-scoop-preview');
+    if(sp) { sp.classList.remove('section-hidden'); sp.textContent = `${scoops} scoops = ~${fVol}ml at standard dilution`; }
+  } else {
+    const sp = document.getElementById('btf-scoop-preview');
+    if(sp) sp.classList.add('section-hidden');
+  }
+  updateFnBPreview();
+  const preview = document.getElementById('btf-preview');
+
+  if(!btfKcal || !btfVol || !btfFreq) { preview.classList.add('section-hidden'); return; }
+
+  const btfTotal   = btfVol * btfFreq;
+  const btfKcalDay = Math.round(btfKcal * btfTotal / 100 * 10)/10;
+  const btfProtDay = btfProt ? Math.round(btfProt * btfTotal / 100 * 10)/10 : null;
+
+  let fKcalDay=0, fProtDay=0, fTotal=0;
+  if(btfFormula && fVol && fFreq) {
+    fTotal   = fVol * fFreq;
+    fKcalDay = Math.round(btfFormula.kcal * fTotal / 100 * 10)/10;
+    fProtDay = Math.round(btfFormula.protein * fTotal / 100 * 10)/10;
+  }
+
+  const totalKcal = Math.round((btfKcalDay+fKcalDay)*10)/10;
+  const totalProt = btfProtDay!==null ? Math.round((btfProtDay+(fProtDay||0))*10)/10 : null;
+  const totalVol  = btfTotal + fTotal;
+
+  // Flush
+  const flushVol  = parseFloat(document.getElementById('flush-vol')?.value)||0;
+  const flushPer  = parseFloat(document.getElementById('flush-per-feed')?.value)||2;
+  const flushFreq = btfFreq + (fFreq||0);
+  const flushTotal= flushVol * flushPer * flushFreq;
+  const extraFlushVol2  = parseFloat(document.getElementById('extra-flush-vol')?.value)||0;
+  const extraFlushFreq2 = parseFloat(document.getElementById('extra-flush-freq')?.value)||0;
+  const extraFlushTotal2 = extraFlushVol2 * extraFlushFreq2;
+
+  // EER/EFR/targets
+  const targetKcal = parseFloat(document.getElementById('targetKcal')?.value)||null;
+  const targetProt = parseFloat(document.getElementById('targetProt')?.value)||null;
+  const fd = getFluidData();
+
+  let text = `BTF:     ${btfVol}ml × ${btfFreq} feeds = ${btfTotal}ml → ${btfKcalDay} kcal${btfProtDay!==null?`, ${btfProtDay}g protein`:''}
+`;
+  if(btfFormula && fVol && fFreq) {
+    text += `Formula: ${fVol}ml × ${fFreq} feeds = ${fTotal}ml → ${fKcalDay} kcal, ${fProtDay}g protein
+`;
+    if(flushTotal) text += `Flush:   ${flushVol}ml pre & ${flushVol}ml post × ${flushFreq} feeds = ${flushTotal}ml
+`;
+    text += `────────────────────────────────────────
+`;
+    text += `Total:   ${totalKcal} kcal, ${totalProt!==null?totalProt+'g protein, ':''}${totalVol + flushTotal + extraFlushTotal2}ml fluid/day
+`;
+    if(targetKcal) text += `         ${Math.round(totalKcal/targetKcal*100)}% EER`;
+    if(targetProt && totalProt!==null) text += `  ·  ${Math.round(totalProt/targetProt*100)}% EPR`;
+    if(fd.fluidTarget) text += `  ·  ${Math.round((totalVol+flushTotal+extraFlushTotal2)/fd.fluidTarget*100)}% EFR`;
+  }
+
+  document.getElementById('btf-preview-text').textContent = text;
+  preview.classList.remove('section-hidden');
+}
+
+function setInputMethod(method) {
+  inputMethod = method;
+  document.getElementById('im-vol').classList.toggle('active', method==='vol');
+  document.getElementById('im-scoop').classList.toggle('active', method==='scoop');
+  document.getElementById('uc1-vol-section').classList.toggle('section-hidden', method!=='vol');
+  document.getElementById('uc1-scoop-section').classList.toggle('section-hidden', method!=='scoop');
+  document.getElementById('output-section').style.display='none';
+  // Hide the inactive preview
+  if(method==='vol') {
+    document.getElementById('scoop-preview')?.classList.add('section-hidden');
+    updateVolPreview();
+  } else {
+    document.getElementById('vol-preview')?.classList.add('section-hidden');
+    updateScoopPreview();
+  }
+}
+
+function updateScoopPreview() {
+  const scoops = parseFloat(document.getElementById('scoopsPerFeed').value);
+  const freq   = parseFloat(document.getElementById('scoopFeedsPerDay').value);
+  const f = getEffectiveFormula();
+  const preview = document.getElementById('scoop-preview');
+  const previewText = document.getElementById('scoop-preview-text');
+
+  if(!scoops || !freq || !f || !f.scoopG || !f.stdDilution) {
+    preview.classList.add('section-hidden');
+    return;
+  }
+
+  // Volume per feed from scoops: each scoop = scoopG of powder
+  // At standard dilution: total vol = powder / (stdDilution/100)
+  // But carer may use non-standard water — so we calculate nutrition directly from powder mass
+  const powderPerFeed = scoops * f.scoopG;
+  const powderPerDay  = powderPerFeed * freq;
+
+  // Nutrition per gram of powder = per100ml / (stdDilution/100) / 100
+  // = per100ml / stdDilution
+  const kcalPerG   = f.kcal    ? f.kcal    / f.stdDilution : null;
+  const protPerG   = f.protein / f.stdDilution;
+  const fatPerG    = f.fat     / f.stdDilution;
+  const choPerG    = f.cho     / f.stdDilution;
+
+  const kcalDay  = kcalPerG  ? Math.round(kcalPerG  * powderPerDay * 10)/10 : null;
+  const protDay  = Math.round(protPerG  * powderPerDay * 10)/10;
+  const fatDay   = Math.round(fatPerG   * powderPerDay * 10)/10;
+  const choDay   = Math.round(choPerG   * powderPerDay * 10)/10;
+
+  // Equivalent volume at standard dilution (for reference)
+  const stdVolPerFeed = Math.round(powderPerFeed / (f.stdDilution/100));
+  const stdVolDay     = stdVolPerFeed * freq;
+
+  let text = `${scoops} scoop${scoops!==1?'s':''} × ${freq} feeds = ${Math.round(powderPerDay)}g powder/day
+`;
+  text += `Equiv. vol at std dilution: ~${stdVolPerFeed}ml/feed (${stdVolDay}ml/day)
+`;
+  text += `
+Nutrition from powder alone:
+`;
+  if(kcalDay !== null) text += `  Energy:   ${kcalDay} kcal/day
+`;
+  text += `  Protein:  ${protDay}g/day
+`;
+  text += `  Fat:      ${fatDay}g/day
+`;
+  text += `  CHO:      ${choDay}g/day`;
+
+  previewText.textContent = text;
+  preview.classList.remove('section-hidden');
+  document.getElementById('output-section').style.display='none';
+}
+
+function updateVolPreview() {
+  const vol  = parseFloat(document.getElementById('volPerFeed')?.value)
+            || parseFloat(document.getElementById('totalVol')?.value) / (parseFloat(document.getElementById('feedsPerDay')?.value)||1)
+            || 0;
+  const freq = parseFloat(document.getElementById('feedsPerDay')?.value) || 0;
+  const f = getEffectiveFormula();
+  const preview = document.getElementById('vol-preview');
+  const previewText = document.getElementById('vol-preview-text');
+  if(!preview || !previewText) return;
+
+  if(!vol || !freq || !f || !f.kcal) { preview.classList.add('section-hidden'); return; }
+
+  const totalVol = vol * freq;
+  const kcalDay  = Math.round(f.kcal    * totalVol / 100 * 10) / 10;
+  const protDay  = Math.round(f.protein * totalVol / 100 * 10) / 10;
+  const fatDay   = Math.round(f.fat     * totalVol / 100 * 10) / 10;
+  const choDay   = Math.round(f.cho     * totalVol / 100 * 10) / 10;
+  const naDay    = Math.round(f.sodium  * totalVol / 100);
+  const kDay     = Math.round(f.potassium * totalVol / 100);
+
+  // Scoop equivalents at standard dilution
+  let scoopLine = '';
+  if(f.scoopG && f.stdDilution && f.stdWaterPerScoop) {
+    const scoopsExact = vol * (f.stdDilution / 100) / f.scoopG;
+    const scoopsR     = Math.round(scoopsExact * 2) / 2;
+    const waterMl     = Math.round(scoopsR * f.stdWaterPerScoop);
+    const scoopLabel  = scoopsR === Math.round(scoopsR) ? scoopsR : scoopsR.toFixed(1);
+    scoopLine = `Prep: ${scoopLabel} scoop${scoopsR!==1?'s':''} (${Math.round(scoopsR*f.scoopG)}g) + ${waterMl}ml water → ${vol}ml\n`;
+  }
+
+  let text = `${vol}ml × ${freq} feeds = ${Math.round(totalVol)}ml/day\n`;
+  if(scoopLine) text += scoopLine;
+  text += `\nEnergy:    ${kcalDay} kcal/day\n`;
+  text += `Protein:   ${protDay}g/day\n`;
+  text += `Fat:       ${fatDay}g/day\n`;
+  text += `CHO:       ${choDay}g/day\n`;
+  text += `Sodium:    ${naDay}mg/day\n`;
+  text += `Potassium: ${kDay}mg/day`;
+
+  previewText.textContent = text;
+  preview.classList.remove('section-hidden');
+  document.getElementById('output-section').style.display = 'none';
+}
+
+// ── Use Case switching ────────────────────────────────────────────────────────
+function setUseCase(uc) {
+  useCase = uc;
+  document.getElementById('uc-tab-1').classList.toggle('active', uc===1);
+  document.getElementById('uc-tab-2').classList.toggle('active', uc===2);
+  document.getElementById('uc1-section').classList.toggle('section-hidden', uc!==1);
+  document.getElementById('uc2-section').classList.toggle('section-hidden', uc!==2);
+  document.getElementById('calc-btn').textContent = uc===1 ? 'Calculate intake' : 'Calculate Nutrition Support';
+  document.getElementById('output-section').style.display='none';
+}
+
+// ── UC2: live working calc as user types ──────────────────────────────────────
+function uc2SolveOther(changed) {
+  const targetKcal = parseFloat(document.getElementById('targetKcal').value);
+
+  // Get effective kcal density depending on feed type
+  let f = null;
+  let feedKcal = null;
+  let feedLabel = '';
+  if(feedType === 'formula') {
+    f = getEffectiveFormula();
+    if(!f || !f.kcal) { document.getElementById('uc2-working').classList.add('section-hidden'); return; }
+    feedKcal = f.kcal;
+    feedLabel = f.name;
+  } else if(feedType === 'ebm') {
+    feedKcal = EBM_REF.kcal; // 67
+    feedLabel = 'EBM (reference)';
+  } else if(feedType === 'ebmfort') {
+    const fort = EBM_FORT[ebmFortLevel];
+    feedKcal = fort.kcal;
+    feedLabel = fort.label;
+  } else {
+    document.getElementById('uc2-working').classList.add('section-hidden'); return;
+  }
+
+  if(!targetKcal) {
+    document.getElementById('uc2-working').classList.add('section-hidden');
+    return;
+  }
+
+  const totalVolNeeded = Math.round(targetKcal / feedKcal * 100);
+  const freq = parseFloat(document.getElementById('uc2-freq').value);
+  const vol  = parseFloat(document.getElementById('uc2-vol').value);
+
+  let solvedFreq = freq, solvedVol = vol;
+
+  if(changed === 'freq' && freq) {
+    solvedVol = Math.round(totalVolNeeded / freq);
+    document.getElementById('uc2-vol').value = solvedVol;
+    document.getElementById('uc2-vol-hint').textContent = `→ ${solvedVol}ml per feed`;
+    document.getElementById('uc2-freq-hint').textContent = '';
+  } else if(changed === 'vol' && vol) {
+    solvedFreq = Math.round(totalVolNeeded / vol); // whole number only
+    document.getElementById('uc2-freq').value = solvedFreq;
+    document.getElementById('uc2-freq-hint').textContent = `→ ${solvedFreq} feeds/day`;
+    document.getElementById('uc2-vol-hint').textContent = '';
+  }
+
+  // Show working
+  const hoursInterval = solvedFreq ? (24/solvedFreq).toFixed(1) : '?';
+  const targetProt = parseFloat(document.getElementById('targetProt').value) || null;
+  const protProvided = (targetProt && f) ? Math.round(f.protein * totalVolNeeded / 100 * 10)/10 : null;
+  const practical = (solvedFreq && solvedVol && f) ? getPracticalRec(f, totalVolNeeded, solvedFreq) : null;
+  // For EBM/fortified EBM, build simple practical rec without scoop info
+  let ebmPractical = null;
+  if(solvedFreq && solvedVol && !f) {
+    const volP = Math.round((totalVolNeeded/solvedFreq) / 5) * 5;
+    const totalP = volP * solvedFreq;
+    const kcalP = Math.round(feedKcal * totalP / 100 * 10)/10;
+    const protP = feedType==='ebmfort' ? Math.round(EBM_FORT[ebmFortLevel].protein * totalP / 100 * 10)/10
+                                       : Math.round(EBM_REF.protein * totalP / 100 * 10)/10;
+    ebmPractical = { volPractical:volP, totalVolPractical:totalP, kcalActual:kcalP, protActual:protP };
+  }
+  const effectivePractical = practical || ebmPractical;
+
+  let working = '';
+  working += `── EXACT WORKING ──────────────────────\n`;
+  working += `Target energy:    ${targetKcal} kcal/day\n`;
+  working += `Feed density:     ${feedKcal} kcal/100ml  (${feedLabel})\n`;
+  working += `Total vol needed: ${targetKcal} ÷ ${feedKcal} × 100 = ${totalVolNeeded}ml/day\n`;
+  if(solvedFreq && solvedVol) {
+    working += `Per feed (exact): ${totalVolNeeded}ml ÷ ${solvedFreq} = ${(totalVolNeeded/solvedFreq).toFixed(1)}ml\n`;
+    working += `Interval:         24 ÷ ${solvedFreq} = every ${hoursInterval} hours\n`;
+  }
+
+  if(effectivePractical) {
+    working += `\n── PRACTICAL RECOMMENDATION ───────────\n`;
+    working += `Volume/feed:  ${(totalVolNeeded/solvedFreq).toFixed(1)}ml → rounded to ${effectivePractical.volPractical}ml\n`;
+    if(effectivePractical.scoopStr) working += `Preparation:  ${effectivePractical.scoopStr}\n`;
+    working += `Total/day:    ${effectivePractical.volPractical}ml × ${solvedFreq} = ${effectivePractical.totalVolPractical}ml/day\n`;
+    working += `Actual kcal:  ${effectivePractical.kcalActual} kcal/day`;
+    if(targetKcal) working += ` (${Math.round(effectivePractical.kcalActual/targetKcal*100)}% of target)`;
+    working += `\n`;
+    working += `Actual prot:  ${effectivePractical.protActual}g/day`;
+    if(targetProt) {
+      const protPct = Math.round(effectivePractical.protActual/targetProt*100);
+      const flag = protPct>=90?'✓':protPct>=70?'⚠ below target':'✗ significantly below target';
+      working += ` (${protPct}% of ${targetProt}g target) ${flag}`;
+    }
+    working += `\n`;
+    // For EBM fortification, add the tsp instruction in the practical section
+    if(feedType==='ebmfort' && EBM_FORT[ebmFortLevel].tsp > 0) {
+      const fort = EBM_FORT[ebmFortLevel];
+      const fortKey = document.getElementById('ebmFortFormula').value;
+      const fortF = fortKey ? FORMULAS.paediatric.formulas[fortKey] : null;
+      const fortName = fortF ? fortF.name : 'formula powder';
+      const tspExact = fort.tsp * (effectivePractical.volPractical / 80);
+      const tspP = Math.round(tspExact * 2) / 2;
+      const tspStr = tspP === Math.round(tspP) ? tspP : tspP.toFixed(1);
+      const ebmVol = Math.round(effectivePractical.volPractical - tspP * 2.5);
+      working += `\nFortified EBM prep (${effectivePractical.volPractical}ml feed):\n`;
+      working += `  Measure ${ebmVol}ml EBM\n`;
+      working += `  Add ${tspStr} tsp (${Math.round(tspP*2.5)}g) ${fortName}\n`;
+      working += `  Mix well → ${effectivePractical.volPractical}ml\n`;
+    }
+  }
+
+  document.getElementById('uc2-working-text').textContent = working;
+  document.getElementById('uc2-working').classList.remove('section-hidden');
+  document.getElementById('output-section').style.display='none';
+  updateFluidSummary();
+}
+
+function getScoopInfo(f, vol) {
+  if(!f || !vol || !f.scoopG || !f.stdWaterPerScoop) return null;
+  const factor = formulaConc==='x125'?1.25:formulaConc==='x15'?1.5:1.0;
+  const scoopsExact = vol * (f.stdDilution * factor / 100) / f.scoopG;
+  const scoopsR = Math.round(scoopsExact * 4) / 4;
+  const water = Math.round(scoopsR * f.stdWaterPerScoop);
+  const scoopStr = scoopsR === Math.round(scoopsR) ? scoopsR : scoopsR.toFixed(2);
+  return `${scoopStr} level scoop${scoopsR!==1?'s':''} (${Math.round(scoopsR*f.scoopG)}g) + ${water}ml water → ${vol}ml`;
+}
+
+// Returns practical (rounded) recommendation + actual kcal from rounded values
+function getPracticalRec(f, totalVolNeeded, freq) {
+  if(!f || !f.kcal) return null;
+  const factor = formulaConc==='x125'?1.25:formulaConc==='x15'?1.5:1.0;
+
+  // Step 1: round volume per feed to nearest 5ml
+  const volExact = totalVolNeeded / freq;
+  const volPractical = Math.round(volExact / 5) * 5;
+
+  // Step 2: round scoops to nearest 0.5
+  let scoopStr = '', waterMl = 0, powderG = 0;
+  if(f.scoopG && f.stdWaterPerScoop && f.stdDilution) {
+    const scoopsExact = volPractical * (f.stdDilution * factor / 100) / f.scoopG;
+    const scoopsPractical = Math.round(scoopsExact * 2) / 2; // nearest 0.5
+    powderG = Math.round(scoopsPractical * f.scoopG * 10) / 10;
+    waterMl = Math.round(scoopsPractical * f.stdWaterPerScoop / 5) * 5; // nearest 5ml
+    const scoopLabel = scoopsPractical === Math.round(scoopsPractical) 
+      ? scoopsPractical 
+      : scoopsPractical.toFixed(1);
+    scoopStr = `${scoopLabel} scoop${scoopsPractical!==1?'s':''} (${powderG}g) + ${waterMl}ml water`;
+  } else if(f.type === 'sachet') {
+    scoopStr = `1 sachet (${f.sachetG}g) + ${f.sachetWater}ml water = ${f.sachetVolume}ml`;
+  }
+
+  // Step 3: recalculate actual kcal/protein from practical values
+  const totalVolPractical = volPractical * freq;
+  const kcalActual = Math.round(f.kcal * totalVolPractical / 100 * 10) / 10;
+  const protActual = Math.round(f.protein * totalVolPractical / 100 * 10) / 10;
+
+  return {
+    volPractical,
+    totalVolPractical,
+    scoopStr,
+    kcalActual,
+    protActual,
+    freq
+  };
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init() {
+  populateFormulaSelects();
+  showFeedSection();
+  setBTFDensity('std');
+  updateFluidsCard();
+}
+
+function populateFormulaSelects() {
+  const group = patientType === 'paeds' ? 'paediatric' : 'adult';
+  const formulas = FORMULAS[group].formulas;
+
+  // Main formula select
+  const sel = document.getElementById('formulaSelect');
+  sel.innerHTML = '<option value="">— select formula —</option>';
+  Object.entries(formulas).forEach(([k,f]) => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${f.name} (${f.age})`;
+    sel.appendChild(opt);
+  });
+
+  // EBM fort formula select — always paediatric infant formulas
+  const efSel = document.getElementById('ebmFortFormula');
+  efSel.innerHTML = '<option value="">— select formula powder —</option>';
+  Object.entries(FORMULAS.paediatric.formulas).forEach(([k,f]) => {
+    if(!f.supplement) {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = f.name;
+      efSel.appendChild(opt);
+    }
+  });
+
+  // Mixed formula select
+  const mSel = document.getElementById('mixedFormulaSelect');
+  mSel.innerHTML = '<option value="">— select formula —</option>';
+  Object.entries(formulas).forEach(([k,f]) => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${f.name} (${f.age})`;
+    mSel.appendChild(opt);
+  });
+
+  // BTF formula select
+  const btfSel = document.getElementById('btfFormulaSelect');
+  if(btfSel) {
+    btfSel.innerHTML = '<option value="">— select formula —</option>';
+    Object.entries(formulas).forEach(([k,f]) => {
+      if(!f.supplement) {
+        const opt = document.createElement('option');
+        opt.value = k; opt.textContent = `${f.name} (${f.age})`;
+        btfSel.appendChild(opt);
+      }
+    });
+  }
+
+  selectedFormula = null;
+  btfFormula = null;
+  document.getElementById('formula-info-box').classList.add('section-hidden');
+  document.getElementById('peptjnr-conc').classList.add('section-hidden');
+}
+
+function setPatientType(type) {
+  patientType = type;
+  document.getElementById('tab-paeds').classList.toggle('active', type==='paeds');
+  document.getElementById('tab-adult').classList.toggle('active', type==='adult');
+
+  // Hide EBM options for adults
+  const ebmBtns = ['ft-ebm','ft-ebmfort','ft-mixed'];
+  ebmBtns.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = type==='adult' ? 'none' : '';
+  });
+  if(type==='adult' && ['ebm','ebmfort','mixed'].includes(feedType)) {
+    setFeedType('formula');
+  }
+  // BTF visible for both paeds and adult
+
+  // Hide formula concentration for adults
+  if(type==='adult') {
+    document.getElementById('formula-conc-section').classList.add('section-hidden');
+  }
+
+  populateFormulaSelects();
+  document.getElementById('adult-formula-note').classList.toggle('section-hidden', type !== 'adult');
+}
+
+function setFeedType(type) {
+  feedType = type;
+  ['formula','ebm','ebmfort','mixed','btf'].forEach(t => {
+    document.getElementById(`ft-${t}`)?.classList.toggle('active', t===type);
+  });
+  // Hide UC selector for BTF — it has its own self-contained inputs
+  const ucCard = document.getElementById('uc-card');
+  const calcBtn = document.getElementById('calc-btn');
+  if(ucCard) ucCard.style.display = type==='btf' ? 'none' : '';
+  if(calcBtn) {
+    calcBtn.style.display = '';
+    calcBtn.textContent = type==='btf' ? 'Calculate nutrition support' : (useCase===1?'Calculate intake':'Calculate Nutrition Support');
+  }
+  showFeedSection();
+}
+
+function showFeedSection() {
+  ['section-formula','section-ebm','section-ebmfort','section-mixed','section-btf'].forEach(id => {
+    document.getElementById(id).classList.add('section-hidden');
+  });
+  const map = {formula:'section-formula',ebm:'section-ebm',ebmfort:'section-ebmfort',mixed:'section-mixed',btf:'section-btf'};
+  document.getElementById(map[feedType]).classList.remove('section-hidden');
+  document.getElementById('output-section').style.display='none';
+}
+
+// ── Formula selection ─────────────────────────────────────────────────────────
+function getFormulaObj(key) {
+  const group = patientType === 'paeds' ? 'paediatric' : 'adult';
+  return FORMULAS[group].formulas[key] || null;
+}
+
+function onFormulaChange() {
+  const key = document.getElementById('formulaSelect').value;
+  selectedFormula = key ? getFormulaObj(key) : null;
+  renderFormulaInfo(selectedFormula, 'formula-info-box');
+
+  // Show/hide multi-concentration selector for any multiConc formula
+  const isMultiConc = !!(selectedFormula?.multiConc);
+  document.getElementById('peptjnr-conc').classList.toggle('section-hidden', !isMultiConc);
+  if(isMultiConc) renderMultiConcBtns(selectedFormula);
+
+  // Show formula concentration option for paeds non-supplement formulas (but not multiConc formulas)
+  const showConc = patientType==='paeds' && selectedFormula && !selectedFormula.supplement && !isMultiConc;
+  document.getElementById('formula-conc-section').classList.toggle('section-hidden', !showConc);
+  if(showConc) { formulaConc='std'; updateConcBtns(); updateConcRecipe(); }
+  document.getElementById('output-section').style.display='none';
+  if(inputMethod==='scoop') updateScoopPreview();
+  if(inputMethod==='vol') updateVolPreview();
+}
+
+function onMixedFormulaChange() {
+  const key = document.getElementById('mixedFormulaSelect').value;
+  mixedFormula = key ? getFormulaObj(key) : null;
+  document.getElementById('output-section').style.display='none';
+}
+
+function buildAvailabilityHTML(key) {
+  if(!key) return '';
+  const avail = settingsData?.availability?.[key];
+  const pharmacies = avail?.pharmacies || [];
+  const flavours = avail?.flavours || '';
+  if(!pharmacies.length && !flavours) return '';
+  let html = '<div style="margin-top:.6rem;padding:.5rem .65rem;background:#f8fafc;border:1px solid var(--border);border-radius:7px">';
+  html += '<div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.3rem">Availability</div>';
+  if(pharmacies.length) {
+    html += '<div style="margin-bottom:.25rem">';
+    pharmacies.forEach(ph => { html += `<span class="avail-badge">📍 ${ph}</span>`; });
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:.72rem;color:var(--muted)">Not marked as available at any pharmacy</div>';
+  }
+  if(flavours) {
+    html += '<div style="margin-top:.2rem">';
+    flavours.split(',').map(s=>s.trim()).filter(Boolean).forEach(fl => {
+      html += `<span class="flavour-tag">🍦 ${fl}</span>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderFormulaInfo(f, boxId, key) {
+  const box = document.getElementById(boxId);
+  if(!f) { box.classList.add('section-hidden'); return; }
+  box.classList.remove('section-hidden');
+
+  const kcalStr = f.kcal ? `${f.kcal} kcal/100ml` : 'N/A (supplement)';
+
+  // ── Properties badges (formula characteristics) ──
+  const propBadges = [];
+  if(!f.lactose)   propBadges.push('<span class="badge lf">Lactose-free</span>');
+  if(f.glutenFree) propBadges.push('<span class="badge gf">Gluten-free</span>');
+  if(f.ehf)        propBadges.push('<span class="badge ehf">Extensively Hydrolysed</span>');
+  if(f.cma)        propBadges.push('<span class="badge cma">✓ Suitable for Cows\' Milk Protein Allergy</span>');
+  if(f.peptide)    propBadges.push('<span class="badge peptide">Peptide-based</span>');
+  if(f.mct)        propBadges.push('<span class="badge mct">MCT</span>');
+  if(f.dha)        propBadges.push('<span class="badge dha">DHA</span>');
+  if(f.supplement) propBadges.push('<span class="badge supp">Supplement — not complete</span>');
+  if(f.allergens?.includes('soy') && f.name.toLowerCase().includes('isomil'))
+    propBadges.push('<span class="badge soy">Soy-based</span>');
+
+  // ── Allergen badges ──
+  const allergenBadges = [];
+  if(f.allergens?.includes('milk'))   allergenBadges.push('<span class="badge" style="background:#fff0f0;color:#9f1239;border:1px solid #fca5a5">🥛 Milk</span>');
+  if(f.allergens?.includes('soy'))    allergenBadges.push('<span class="badge" style="background:#fdf4ff;color:#7e22ce;border:1px solid #d8b4fe">🌱 Soy</span>');
+  if(f.allergens?.includes('fish'))   allergenBadges.push('<span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #93c5fd">🐟 Fish</span>');
+  if(f.allergens?.includes('wheat'))  allergenBadges.push('<span class="badge" style="background:#fefce8;color:#854d0e;border:1px solid #fde047">🌾 Wheat</span>');
+  if(f.allergens?.includes('peanut')) allergenBadges.push('<span class="badge danger" style="font-size:.72rem;padding:.2rem .5rem">⚠ PEANUT</span>');
+
+  // ── Per scoop nutrition ──
+  let scoopHTML = '';
+  if(f.type === 'sachet' && f.sachetG && f.sachetVolume) {
+    const pct = f.sachetG / f.sachetVolume;
+    const sKcal  = f.kcal   ? (f.kcal   * pct).toFixed(0) : '—';
+    const sProt  = f.protein ? (f.protein * pct).toFixed(2) : '—';
+    const sFat   = f.fat     ? (f.fat     * pct).toFixed(2) : '—';
+    const sCho   = f.cho     ? (f.cho     * pct).toFixed(2) : '—';
+    scoopHTML = `
+      <div style="margin-top:.5rem">
+        <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">Per Sachet (${f.sachetG}g)</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.3rem;text-align:center">
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--accent)">${sKcal}</div><div style="font-size:.62rem;color:var(--muted)">kcal</div></div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--text)">${sProt}g</div><div style="font-size:.62rem;color:var(--muted)">protein</div></div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--text)">${sFat}g</div><div style="font-size:.62rem;color:var(--muted)">fat</div></div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--text)">${sCho}g</div><div style="font-size:.62rem;color:var(--muted)">CHO</div></div>
+        </div>
+      </div>`;
+  } else if(f.scoopG && f.stdDilution) {
+    // per scoop = scoopG / 100 * per100ml values
+    // but more accurately: nutrition per scoop = scoopG * (per100g values)
+    // per100g = per100ml / (stdDilution/100)
+    const p100g_kcal  = f.kcal    ? f.kcal   / (f.stdDilution/100) : null;
+    const p100g_prot  = f.protein ? f.protein / (f.stdDilution/100) : null;
+    const p100g_fat   = f.fat     ? f.fat     / (f.stdDilution/100) : null;
+    const p100g_cho   = f.cho     ? f.cho     / (f.stdDilution/100) : null;
+    const sKcal = p100g_kcal ? (p100g_kcal * f.scoopG / 100).toFixed(0) : '—';
+    const sProt = p100g_prot ? (p100g_prot * f.scoopG / 100).toFixed(1) : '—';
+    const sFat  = p100g_fat  ? (p100g_fat  * f.scoopG / 100).toFixed(1) : '—';
+    const sCho  = p100g_cho  ? (p100g_cho  * f.scoopG / 100).toFixed(1) : '—';
+    scoopHTML = `
+      <div style="margin-top:.5rem">
+        <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">Per Scoop (${f.scoopG}g powder)</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.3rem;text-align:center">
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--accent)">${sKcal}</div><div style="font-size:.62rem;color:var(--muted)">kcal</div></div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--text)">${sProt}g</div><div style="font-size:.62rem;color:var(--muted)">protein</div></div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--text)">${sFat}g</div><div style="font-size:.62rem;color:var(--muted)">fat</div></div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.3rem .2rem"><div style="font-size:.85rem;font-weight:800;color:var(--text)">${sCho}g</div><div style="font-size:.62rem;color:var(--muted)">CHO</div></div>
+        </div>
+      </div>`;
+  }
+
+  // ── Standard dilution box ──
+  let dilutionHTML = '';
+  if(f.type === 'sachet') {
+    dilutionHTML = `
+      <div style="margin-top:.6rem;padding:.6rem .7rem;background:#e8f5f1;border-radius:7px;border:1.5px solid #a7d7c8">
+        <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:.25rem">Standard Dilution</div>
+        <div style="font-size:.83rem">1 sachet <strong>(${f.sachetG}g)</strong> + <strong>${f.sachetWater}ml</strong> water = <strong>${f.sachetVolume}ml</strong></div>
+      </div>`;
+  } else if(f.scoopG && f.stdWaterPerScoop) {
+    const finalVolPerScoop = Math.round(f.scoopG + f.stdWaterPerScoop);
+    dilutionHTML = `
+      <div style="margin-top:.6rem;padding:.6rem .7rem;background:#e8f5f1;border-radius:7px;border:1.5px solid #a7d7c8">
+        <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:.25rem">Standard Dilution</div>
+        <div style="font-size:.83rem">1 scoop <strong>(${f.scoopG}g)</strong> + <strong>${f.stdWaterPerScoop}ml</strong> water = <strong>~${finalVolPerScoop}ml</strong></div>
+        <div style="font-size:.71rem;color:var(--muted);margin-top:.15rem">${f.stdDilution.toFixed(1)}% · ${f.kcal ? f.kcal+' kcal/100ml' : ''}</div>
+      </div>`;
+  }
+
+  box.innerHTML = `
+    <div class="formula-info">
+      <div style="font-weight:700;font-size:.85rem;margin-bottom:.5rem">${f.name} <span style="color:var(--muted);font-weight:400;font-size:.78rem">${f.age}</span></div>
+
+      ${propBadges.length ? `
+      <div style="margin-bottom:.4rem">
+        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.2rem">Properties</div>
+        <div>${propBadges.join(' ')}</div>
+      </div>` : ''}
+
+      ${allergenBadges.length ? `
+      <div style="margin-bottom:.6rem">
+        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9f1239;margin-bottom:.2rem">⚠ Contains Allergens</div>
+        <div>${allergenBadges.join(' ')}</div>
+      </div>` : ''}
+
+      <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem;margin-top:.2rem">Nutrition per 100ml</div>
+      <div class="fi-row"><span>Energy</span><span class="fi-val">${kcalStr}</span></div>
+      <div class="fi-row"><span>Protein</span><span class="fi-val">${f.protein}g</span></div>
+      <div class="fi-row"><span>Fat</span><span class="fi-val">${f.fat}g</span></div>
+      <div class="fi-row"><span>Carbohydrate</span><span class="fi-val">${f.cho}g</span></div>
+      ${f.fibre ? `<div class="fi-row"><span>Fibre</span><span class="fi-val">${f.fibre}g</span></div>` : ''}
+      <div class="fi-row"><span>Sodium</span><span class="fi-val">${f.sodium}mg</span></div>
+      <div class="fi-row"><span>Potassium</span><span class="fi-val">${f.potassium}mg</span></div>
+
+      ${scoopHTML}
+      ${dilutionHTML}
+
+      ${f.notes ? `<div style="margin-top:.5rem;color:var(--muted);font-size:.72rem;line-height:1.4">${f.notes.replace(/NOT suitable for cows' milk protein allergy/g,'<strong style="color:var(--danger)">⚠ NOT suitable for cows\' milk protein allergy</strong>')}</div>` : ''}
+      ${buildAvailabilityHTML(key)}
+    </div>`;
+}
+
+// ── Concentration ─────────────────────────────────────────────────────────────
+function setFormulaConc(level) {
+  formulaConc = level;
+  updateConcBtns();
+  updateConcRecipe();
+}
+
+function updateConcBtns() {
+  ['std','x125','x15'].forEach(l => {
+    const map = {std:'fc-std',x125:'fc-125',x15:'fc-15'};
+    document.getElementById(map[l])?.classList.toggle('active', l===formulaConc);
+  });
+}
+
+function updateConcRecipe() {
+  if(!selectedFormula || formulaConc==='std') {
+    document.getElementById('conc-recipe').classList.add('section-hidden');
+    return;
+  }
+  const f = selectedFormula;
+  const factors = {x125:1.25, x15:1.5};
+  const factor = factors[formulaConc];
+  const newDilPct = (f.stdDilution * factor).toFixed(1);
+  const waterPerScoop = Math.round(f.stdWaterPerScoop / factor);
+  const kcalResult = Math.round(f.kcal * factor);
+  const protResult = (f.protein * factor).toFixed(2);
+
+  const box = document.getElementById('conc-recipe');
+  box.classList.remove('section-hidden');
+  box.innerHTML = `<div class="rb-title">Recipe — ${formulaConc==='x125'?'×1.25 (84 kcal/100ml)':'×1.5 (100 kcal/100ml)'}</div>
+    <div>New dilution: <strong>${newDilPct}%</strong> (${f.stdDilution}% × ${factor})</div>
+    <div>Scoop recipe: <strong>1 scoop per ${waterPerScoop}ml water</strong></div>
+    <div>Energy: <strong>${kcalResult} kcal/100ml</strong> · Protein: <strong>${protResult}g/100ml</strong></div>
+    <div style="margin-top:.3rem;color:var(--muted);font-size:.7rem">Verify with actual tin values. Manipulation is off-label.</div>`;
+}
+
+function renderMultiConcBtns(f) {
+  if(!f?.concentrations) return;
+  const levels = Object.keys(f.concentrations);
+  document.getElementById('multiconc-label').textContent = f.name + ' — concentration';
+  document.getElementById('multiconc-btns').innerHTML = levels.map(l => {
+    const c = f.concentrations[l];
+    return `<div class="conc-btn ${l===peptConc?'active':''}" onclick="setPeptConc('${l}')">${l} kcal/ml<br><small>${c.kcal} kcal</small></div>`;
+  }).join('');
+  // Ensure peptConc is valid for this formula
+  if(!f.concentrations[peptConc]) {
+    peptConc = levels[0];
+    document.getElementById('multiconc-btns').querySelector('.conc-btn')?.classList.add('active');
+  }
+}
+
+function setPeptConc(level) {
+  peptConc = level;
+  // Re-render buttons to reflect active state
+  if(selectedFormula?.multiConc) renderMultiConcBtns(selectedFormula);
+  renderFormulaInfo(selectedFormula, 'formula-info-box');
+  updateOutputPreview();
+}
+
+function setEBMFort(level) {
+  ebmFortLevel = level;
+  ['std','x125','x15'].forEach(l => {
+    const map = {std:'ef-std',x125:'ef-x125',x15:'ef-x15'};
+    document.getElementById(map[l])?.classList.toggle('active', l===level);
+  });
+  updateEBMFortInfo();
+}
+
+function calcEBMFortification(targetKcal100ml, fortF) {
+  // Target: reach targetKcal100ml from EBM (67 kcal/100ml base)
+  // Formula powder adds nutrition when mixed with EBM
+  // How much formula powder (g) per 100ml of final mix?
+  // Each gram of powder contributes: kcal = powder.kcal/powder.stdDilution per gram
+  // We need: 67*ebmFraction + powder.kcalPerG*powderG = targetKcal100ml
+  // Constraint: ebmFraction + powderG/100 ≈ 1 (volume conservation, powder displaces tiny amount)
+  // Simplified: powderG per 100ml = (targetKcal100ml - 67) / (fortF.kcal/fortF.stdDilution)
+  if(!fortF || !fortF.stdDilution) return null;
+  const kcalPerGPowder = fortF.kcal / fortF.stdDilution; // kcal per g of powder
+  const powderGPer100ml = (targetKcal100ml - 67) / kcalPerGPowder;
+  // Convert to tsp (1 tsp ≈ 2.5g)
+  const tspExact = powderGPer100ml / 2.5;
+  // Round to nearest 0.5 tsp
+  const tspPractical = Math.round(tspExact * 2) / 2;
+  const powderGPractical = tspPractical * 2.5;
+  // EBM volume for this powder: total is 100ml, powder displaces ~powderG ml (density ~1)
+  const ebmVolPer100ml = Math.round(100 - powderGPractical);
+  // Actual combined nutrition per 100ml of final mix
+  const actualKcal = Math.round((67 * ebmVolPer100ml/100 + fortF.kcal * powderGPractical/fortF.stdDilution) * 10)/10;
+  const actualProt = Math.round((1.0 * ebmVolPer100ml/100 + fortF.protein * powderGPractical/fortF.stdDilution) * 100)/100;
+  const actualFat  = Math.round((4.2 * ebmVolPer100ml/100 + fortF.fat  * powderGPractical/fortF.stdDilution) * 100)/100;
+  const actualCho  = Math.round((7.3 * ebmVolPer100ml/100 + fortF.cho  * powderGPractical/fortF.stdDilution) * 100)/100;
+  const tspStr = tspPractical === Math.round(tspPractical) ? String(tspPractical) : tspPractical.toFixed(1);
+  return { tspExact, tspPractical, tspStr, powderGPractical, ebmVolPer100ml,
+           actualKcal, actualProt, actualFat, actualCho };
+}
+
+function updateEBMFortInfo() {
+  const fort = EBM_FORT[ebmFortLevel];
+  const infoBox = document.getElementById('ebm-fort-info');
+  if(ebmFortLevel === 'std') { infoBox.classList.add('section-hidden'); return; }
+
+  const fortKey = document.getElementById('ebmFortFormula').value;
+  const fortF = fortKey ? FORMULAS.paediatric.formulas[fortKey] : null;
+  const fortName = fortF ? fortF.name : 'formula powder';
+
+  const vol = useCase===2
+    ? (parseFloat(document.getElementById('uc2-vol')?.value) || null)
+    : (parseFloat(document.getElementById('volPerFeed')?.value) || null);
+
+  let html = '';
+
+  if(fortF) {
+    // New logic: calculate how much powder needed to reach target kcal
+    const calc = calcEBMFortification(fort.kcal, fortF);
+    if(calc) {
+      html += `<div style="font-weight:700;margin-bottom:.3rem">To reach ${fort.kcal} kcal/100ml:</div>`;
+      html += `Add <strong>${calc.tspStr} tsp (${calc.powderGPractical}g) ${fortName}</strong> per <strong>${calc.ebmVolPer100ml}ml EBM</strong>`;
+      if(Math.abs(calc.tspExact - calc.tspPractical) > 0.05) {
+        html += ` <span style="font-size:.7rem;color:#92400e">(exact: ${calc.tspExact.toFixed(2)} tsp → rounded to ${calc.tspStr})</span>`;
+      }
+      html += `<br><br>`;
+      html += `<div style="font-weight:700;margin-bottom:.2rem">Combined nutrition per 100ml:</div>`;
+      html += `EBM (${calc.ebmVolPer100ml}ml) + ${fortName} (${calc.powderGPractical}g) provides:<br>`;
+      html += `<strong>${calc.actualKcal} kcal · ${calc.actualProt}g protein · ${calc.actualFat}g fat · ${calc.actualCho}g CHO</strong> per 100ml`;
+
+      // Feed-specific instruction
+      if(vol) {
+        const feedEbm = Math.round(vol * calc.ebmVolPer100ml / 100);
+        const feedPowder = Math.round(vol * calc.powderGPractical / 100 * 10) / 10;
+        const feedTsp = Math.round(feedPowder / 2.5 * 2) / 2;
+        const feedTspStr = feedTsp===Math.round(feedTsp)?String(feedTsp):feedTsp.toFixed(1);
+        html += `<br><br><strong>For a ${vol}ml feed:</strong><br>`;
+        html += `&nbsp;• Measure <strong>${feedEbm}ml EBM</strong><br>`;
+        html += `&nbsp;• Add <strong>${feedTspStr} level tsp (${feedPowder}g)</strong> ${fortName}<br>`;
+        html += `&nbsp;• Mix well → approx. ${vol}ml`;
+      }
+
+      // Shaw fortification limits
+      const ageGroup = document.getElementById('ageGroup')?.value||'';
+      const limKey = ageGroup==='0-6m'||ageGroup==='preterm'?'0-6m':ageGroup==='6-12m'?'6-12m':ageGroup==='1-2y'?'1-2y':'older';
+      const lim = SAFETY[limKey];
+      if(lim) {
+        const protPct = Math.round(calc.actualProt * 4 / calc.actualKcal * 100);
+        const protOk = protPct>=lim.protPctMin && protPct<=lim.protPctMax;
+        const choOk  = calc.actualCho>=lim.choMin && calc.actualCho<=lim.choMax;
+        const fatOk  = calc.actualFat<=lim.fatMax;
+        html += `<br><br><div style="font-weight:700;margin-bottom:.2rem">Fortification limits (Shaw, 2015) — ${lim.label}:</div>`;
+        html += `<span style="${protOk?'color:#166534':'color:#9f1239'}">Protein: ${protPct}% [${lim.protPctMin}–${lim.protPctMax}%] ${protOk?'✓':'⚠'}</span> &nbsp;`;
+        html += `<span style="${choOk?'color:#166534':'color:#9f1239'}">CHO: ${calc.actualCho}g [${lim.choMin}–${lim.choMax}g] ${choOk?'✓':'⚠'}</span> &nbsp;`;
+        const fatRangeE = lim.fatMin?`${lim.fatMin}–${lim.fatMax}g`:`≤${lim.fatMax}g`;
+        const fatOkE = lim.fatMin?(calc.actualFat>=lim.fatMin&&calc.actualFat<=lim.fatMax):calc.actualFat<=lim.fatMax;
+        html += `<span style="${fatOkE?'color:#166534':'color:#9f1239'}">Fat: ${calc.actualFat}g [${fatRangeE}] ${fatOkE?'✓':'⚠'}</span>`;
+      }
+    }
+  } else {
+    html = `<strong>${fort.kcal} kcal/100ml target</strong><br>`;
+    html += `Select a formula powder above to see the fortification calculation.`;
+  }
+
+  infoBox.classList.remove('section-hidden');
+  infoBox.innerHTML = html;
+}
+
+// ── EER estimate ──────────────────────────────────────────────────────────────
+function updateEER() {
+  const wt = parseFloat(document.getElementById('weight').value);
+  const age = document.getElementById('ageGroup').value;
+  const display = document.getElementById('eer-display');
+  if(!wt || !age) { display.classList.add('section-hidden'); return; }
+  let eer = null, eerLabel = '';
+  if(age==='preterm') { eer=[Math.round(wt*110),Math.round(wt*130)]; eerLabel='110–130 kcal/kg (enteral, preterm)'; }
+  else if(age==='0-6m') { eer=[Math.round(wt*100),Math.round(wt*115)]; eerLabel='100–115 kcal/kg'; }
+  else if(age==='6-12m') { eer=[Math.round(wt*95),Math.round(wt*105)]; eerLabel='95–105 kcal/kg'; }
+  else if(age==='1-2y') { eer=[Math.round(wt*90),Math.round(wt*100)]; eerLabel='90–100 kcal/kg'; }
+  else if(age==='2-6y') { eer=[Math.round(wt*80),Math.round(wt*90)]; eerLabel='80–90 kcal/kg'; }
+  else if(age==='6-18y') { eer=[Math.round(wt*60),Math.round(wt*70)]; eerLabel='60–70 kcal/kg'; }
+  else { eer=[Math.round(wt*25),Math.round(wt*30)]; eerLabel='25–30 kcal/kg (hospitalised adult)'; }
+  if(eer) {
+    display.classList.remove('section-hidden');
+    display.innerHTML = `<strong>Estimated EER:</strong> ${eer[0]}–${eer[1]} kcal/day (${eerLabel})<br><span style="font-size:.7rem;font-weight:400;opacity:.8">WHO/FAO reference ranges · For accurate requirements use NutriCalc</span>`;
+  }
+  updateEFR();
+  updateFluidSummary();
+}
+
+function updateOutputPreview() {
+  const vol = parseFloat(document.getElementById('volPerFeed')?.value);
+  const freq = parseFloat(document.getElementById('feedsPerDay')?.value);
+  if(vol && freq) document.getElementById('totalVol').value = Math.round(vol*freq);
+}
+
+function onTotalVolManual() {
+  // allow manual override of total vol
+}
+
+// ── Calculate ─────────────────────────────────────────────────────────────────
+function getEffectiveFormula() {
+  if(!selectedFormula) return null;
+  if(selectedFormula.multiConc) {
+    const c = selectedFormula.concentrations[peptConc];
+    const baseC = selectedFormula.concentrations['1.0'];
+    // Use concentration's own prep data if stored, otherwise derive from powder ratio
+    const stdDilution = c.stdDilution ?? (selectedFormula.stdDilution * c.kcal / baseC.kcal);
+    const stdWaterPerScoop = c.stdWaterPerScoop ?? Math.round(selectedFormula.stdWaterPerScoop / (c.kcal / baseC.kcal));
+    return { ...selectedFormula, ...c, stdDilution, stdWaterPerScoop };
+  }
+  if(formulaConc !== 'std' && patientType==='paeds') {
+    const factor = formulaConc==='x125'?1.25:1.5;
+    return {
+      ...selectedFormula,
+      kcal: Math.round(selectedFormula.kcal * factor * 10)/10,
+      protein: Math.round(selectedFormula.protein * factor * 100)/100,
+      fat: Math.round(selectedFormula.fat * factor * 100)/100,
+      cho: Math.round(selectedFormula.cho * factor * 100)/100,
+      sodium: Math.round(selectedFormula.sodium * factor),
+      potassium: Math.round(selectedFormula.potassium * factor),
+      _concentrated: true,
+      _factor: factor
+    };
+  }
+  return selectedFormula;
+}
+
+function calculate() {
+  try { _calculate(); } catch(e) {
+    console.error('Calculate error:', e);
+    document.getElementById('output-text').textContent = '⚠ Calculation error: ' + e.message + '\n\nStack: ' + e.stack;
+    document.getElementById('output-section').style.display = 'block';
+  }
+}
+
+function _calculate() {
+  const weight = parseFloat(document.getElementById('weight').value) || null;
+  const targetKcal = parseFloat(document.getElementById('targetKcal').value) || null;
+  const targetProt = parseFloat(document.getElementById('targetProt').value) || null;
+  const ageGroup = document.getElementById('ageGroup').value;
+
+  // Get route and vol/freq from the correct use case section
+  let route, volPerFeed, feedsPerDay;
+
+  if(feedType === 'btf') {
+    route = document.getElementById('btfRouteSelect').value;
+    const btfKcal = parseFloat(document.getElementById('btf-kcal').value);
+    const btfProt = parseFloat(document.getElementById('btf-prot').value);
+    const btfVol  = parseFloat(document.getElementById('btf-vol').value);
+    const btfFreq = parseFloat(document.getElementById('btf-freq').value);
+    const {fVol, fFreq, scoopBased: fScoopBased, scoops: fScoops} = getBTFFormulaVolFreq();
+    if(!btfKcal || !btfVol || !btfFreq) { alert('Please enter BTF energy density, volume and frequency.'); return; }
+
+    const btfTotal   = btfVol * btfFreq;
+    const btfKcalDay = Math.round(btfKcal * btfTotal / 100 * 10)/10;
+    const btfProtDay = btfProt ? Math.round(btfProt * btfTotal / 100 * 10)/10 : 0;
+    let fKcalDay=0, fProtDay=0, fFatDay=0, fChoDay=0, fNaDay=0, fKDay=0, fTotal=0;
+    if(btfFormula && fVol && fFreq) {
+      fTotal   = fVol * fFreq;
+      fKcalDay = Math.round(btfFormula.kcal * fTotal / 100 * 10)/10;
+      fProtDay = Math.round(btfFormula.protein * fTotal / 100 * 10)/10;
+      fFatDay  = Math.round(btfFormula.fat * fTotal / 100 * 10)/10;
+      fChoDay  = Math.round(btfFormula.cho * fTotal / 100 * 10)/10;
+      fNaDay   = Math.round(btfFormula.sodium * fTotal / 100);
+      fKDay    = Math.round(btfFormula.potassium * fTotal / 100);
+    }
+    const result = {
+      kcalDay: Math.round((btfKcalDay+fKcalDay)*10)/10,
+      protDay: Math.round((btfProtDay+fProtDay)*10)/10,
+      fatDay: fFatDay, choDay: fChoDay,
+      naDay: fNaDay||null, kDay: fKDay||null,
+      totalVol: btfTotal+fTotal, volPerFeed: btfVol, feedsPerDay: btfFreq,
+      btfBased:true, btfKcalDay, btfProtDay, btfTotal, btfVol, btfFreq, btfKcal, btfProt,
+      fKcalDay, fProtDay, fTotal, fVol: fVol||0, fFreq: fFreq||0,
+      kcalPer100:null, protPer100:null, fatPer100:null, choPer100:null
+    };
+    renderResults(result, targetKcal, targetProt, ageGroup, weight);
+    try {
+      renderBTFNotes(result, targetKcal, targetProt, weight, route);
+    } catch(e) {
+      console.error('BTF notes error:', e);
+      document.getElementById('output-text').textContent = 'Error generating notes: ' + e.message;
+    }
+    document.getElementById('output-section').style.display='block';
+    document.getElementById('output-section').scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+
+  } else if(useCase === 2) {
+    route = document.getElementById('routeSelect2').value;
+    volPerFeed = parseFloat(document.getElementById('uc2-vol').value);
+    feedsPerDay = parseFloat(document.getElementById('uc2-freq').value);
+    if(!volPerFeed || !feedsPerDay) {
+      alert('Please enter feeds/day or volume/feed — the calculator will solve the other.');
+      return;
+    }
+  } else if(inputMethod === 'scoop') {
+    // Scoop-based intake — calculate directly from powder mass, bypass volume
+    route = document.getElementById('routeSelect').value;
+    const scoops   = parseFloat(document.getElementById('scoopsPerFeed').value);
+    feedsPerDay    = parseFloat(document.getElementById('scoopFeedsPerDay').value);
+    if(!scoops || !feedsPerDay) { alert('Please enter scoops per feed and feeds per day.'); return; }
+    if(!selectedFormula || !selectedFormula.scoopG || !selectedFormula.stdDilution) {
+      alert('Please select a formula with scoop information.'); return;
+    }
+    const f = getEffectiveFormula();
+    const powderPerFeed = scoops * f.scoopG;
+    const powderPerDay  = powderPerFeed * feedsPerDay;
+    // Nutrition per gram of powder
+    const kcalPerG = f.kcal    ? f.kcal    / f.stdDilution : null;
+    const protPerG = f.protein / f.stdDilution;
+    const fatPerG  = f.fat     / f.stdDilution;
+    const choPerG  = f.cho     / f.stdDilution;
+    const naPerG   = f.sodium   / f.stdDilution;
+    const kPerG    = f.potassium / f.stdDilution;
+    // Equivalent std volume
+    const stdVolPerFeed = Math.round(powderPerFeed / (f.stdDilution/100));
+    volPerFeed = stdVolPerFeed;
+    const totalVol = stdVolPerFeed * feedsPerDay;
+    const result = {
+      kcalDay:  kcalPerG ? Math.round(kcalPerG * powderPerDay * 10)/10 : 0,
+      protDay:  Math.round(protPerG * powderPerDay * 10)/10,
+      fatDay:   Math.round(fatPerG  * powderPerDay * 10)/10,
+      choDay:   Math.round(choPerG  * powderPerDay * 10)/10,
+      naDay:    Math.round(naPerG   * powderPerDay),
+      kDay:     Math.round(kPerG    * powderPerDay),
+      totalVol, volPerFeed, feedsPerDay,
+      kcalPer100: f.kcal, protPer100: f.protein, fatPer100: f.fat, choPer100: f.cho,
+      scoopBased: true, scoopsPerFeed: scoops, powderPerFeed: Math.round(powderPerFeed*10)/10
+    };
+    result.feedDesc = `${f.name} — ${scoops} scoop${scoops!==1?'s':''}/feed × ${feedsPerDay} feeds/day via ${route} (scoop-based estimate)`;
+    renderResults(result, targetKcal, targetProt, ageGroup, weight);
+    renderNotesOutput(result, targetKcal, targetProt, weight, ageGroup, route, volPerFeed, feedsPerDay);
+    document.getElementById('output-section').style.display = 'block';
+    document.getElementById('output-section').scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  } else {
+    route = document.getElementById('routeSelect').value;
+    volPerFeed = parseFloat(document.getElementById('volPerFeed').value);
+    feedsPerDay = parseFloat(document.getElementById('feedsPerDay').value);
+    if(!volPerFeed || !feedsPerDay) { alert('Please enter volume per feed and feeds per day.'); return; }
+  }
+
+  const totalVol = volPerFeed * feedsPerDay;
+
+  let result = null;
+
+  if(feedType === 'formula') {
+    if(!selectedFormula) { alert('Please select a formula.'); return; }
+    const f = getEffectiveFormula();
+    if(!f.kcal) { alert('This is a supplement — use the notes field to document it manually.'); return; }
+    result = calcFormula(f, totalVol, volPerFeed, feedsPerDay);
+    result.feedDesc = buildFormulaFeedDesc(f, volPerFeed, feedsPerDay, route);
+    result.formula = f;
+  } else if(feedType === 'ebm') {
+    result = calcEBM(EBM_REF, totalVol, volPerFeed, feedsPerDay);
+    result.feedDesc = `EBM ${volPerFeed}ml ${feedsPerDay === Math.round(feedsPerDay) ? feedsPerDay+'x' : feedsPerDay+'x'}/day via ${route}`;
+    result.formula = EBM_REF;
+  } else if(feedType === 'ebmfort') {
+    const fort = EBM_FORT[ebmFortLevel];
+    const fortKey = document.getElementById('ebmFortFormula').value;
+    const fortF = fortKey ? FORMULAS.paediatric.formulas[fortKey] : null;
+    const fortCalc = (fort.tsp > 0 && fortF) ? calcEBMFortification(fort.kcal, fortF) : null;
+    // Use calculated combined nutrition if available, else fall back to preset
+    const effFort = fortCalc ? {
+      kcal: fortCalc.actualKcal, protein: fortCalc.actualProt,
+      fat: fortCalc.actualFat, cho: fortCalc.actualCho,
+      sodium: (67*fortCalc.ebmVolPer100ml/100 + (fortF.sodium||0)*fortCalc.powderGPractical/fortF.stdDilution),
+      potassium: (99*fortCalc.ebmVolPer100ml/100 + (fortF.potassium||0)*fortCalc.powderGPractical/fortF.stdDilution)
+    } : fort;
+    result = calcEBM(effFort, totalVol, volPerFeed, feedsPerDay);
+    result.fortCalc = fortCalc;
+    result.fortF = fortF;
+    result.feedDesc = buildEBMFortDesc(fort, fortF, volPerFeed, feedsPerDay, route);
+    result.formula = effFort;
+    // Set per100ml for safety check
+    result.kcalPer100 = effFort.kcal;
+    result.protPer100 = effFort.protein;
+    result.fatPer100  = effFort.fat;
+    result.choPer100  = effFort.cho;
+  } else if(feedType === 'mixed') {
+    const ebmVol = parseFloat(document.getElementById('ebm-vol').value) || 0;
+    const ebmFreq = parseFloat(document.getElementById('ebm-freq').value) || 0;
+    const ebmKcal = parseFloat(document.getElementById('ebm-kcal-custom').value) || 67;
+    if(!mixedFormula) { alert('Please select a formula for the formula feeds.'); return; }
+    result = calcMixed(ebmVol, ebmFreq, ebmKcal, mixedFormula, volPerFeed, feedsPerDay);
+    result.feedDesc = buildMixedDesc(ebmVol, ebmFreq, mixedFormula, volPerFeed, feedsPerDay, route);
+  }
+
+  if(!result) return;
+
+  try {
+    renderResults(result, targetKcal, targetProt, ageGroup, weight);
+  } catch(e) {
+    console.error('renderResults error:', e);
+    document.getElementById('output-text').textContent = 'Error in results: ' + e.message;
+    document.getElementById('output-section').style.display = 'block';
+    return;
+  }
+  try {
+    renderNotesOutput(result, targetKcal, targetProt, weight, ageGroup, route, volPerFeed, feedsPerDay);
+  } catch(e) {
+    console.error('Notes error:', e);
+    document.getElementById('output-text').textContent = 'Error generating notes: ' + e.message;
+  }
+  document.getElementById('output-section').style.display = 'block';
+  document.getElementById('output-section').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function calcFormula(f, totalVol, volPerFeed, feedsPerDay) {
+  const kcalDay = Math.round(f.kcal * totalVol / 100 * 10) / 10;
+  const protDay = Math.round(f.protein * totalVol / 100 * 10) / 10;
+  const fatDay  = Math.round(f.fat * totalVol / 100 * 10) / 10;
+  const choDay  = Math.round(f.cho * totalVol / 100 * 10) / 10;
+  const naDay   = Math.round(f.sodium * totalVol / 100);
+  const kDay    = Math.round(f.potassium * totalVol / 100);
+  return { kcalDay, protDay, fatDay, choDay, naDay, kDay, totalVol, volPerFeed, feedsPerDay,
+           kcalPer100: f.kcal, protPer100: f.protein, fatPer100: f.fat, choPer100: f.cho };
+}
+
+function calcEBM(ref, totalVol, volPerFeed, feedsPerDay) {
+  return calcFormula(ref, totalVol, volPerFeed, feedsPerDay);
+}
+
+function calcMixed(ebmVol, ebmFreq, ebmKcal, formulaF, fVol, fFreq) {
+  const ebmTotal = ebmVol * ebmFreq;
+  const fTotal = fVol * fFreq;
+  const totalVol = ebmTotal + fTotal;
+  const ebmProt = 1.0; // reference
+  const kcalDay = Math.round((ebmKcal * ebmTotal/100 + formulaF.kcal * fTotal/100) * 10)/10;
+  const protDay = Math.round((ebmProt * ebmTotal/100 + formulaF.protein * fTotal/100) * 10)/10;
+  const fatDay  = Math.round((4.2 * ebmTotal/100 + formulaF.fat * fTotal/100) * 10)/10;
+  const choDay  = Math.round((7.3 * ebmTotal/100 + formulaF.cho * fTotal/100) * 10)/10;
+  return { kcalDay, protDay, fatDay, choDay, naDay:null, kDay:null, totalVol, volPerFeed:fVol, feedsPerDay:fFreq, ebmVol, ebmFreq, ebmTotal, fTotal, mixed:true };
+}
+
+function renderResults(r, targetKcal, targetProt, ageGroup, weight) {
+  const grid = document.getElementById('results-grid');
+  const wt = weight || null;
+
+  let kcalKg = wt ? (r.kcalDay/wt).toFixed(1) : null;
+  let protKg = wt ? (r.protDay/wt).toFixed(2) : null;
+
+  grid.innerHTML = `
+    <div class="res-box highlight"><div class="rv">${r.kcalDay}</div><div class="rl">kcal/day${kcalKg?` · ${kcalKg} kcal/kg`:''}</div></div>
+    <div class="res-box highlight"><div class="rv">${r.protDay}g</div><div class="rl">protein/day${protKg?` · ${protKg} g/kg`:''}</div></div>
+    <div class="res-box"><div class="rv">${r.totalVol}ml</div><div class="rl">total volume/day</div></div>
+    <div class="res-box"><div class="rv">${r.fatDay}g</div><div class="rl">fat/day</div></div>
+    <div class="res-box"><div class="rv">${r.choDay}g</div><div class="rl">CHO/day</div></div>
+    <div class="res-box"><div class="rv">${r.naDay ?? '—'}</div><div class="rl">sodium mg/day</div></div>`;
+
+  // % of targets
+  const pctDiv = document.getElementById('pct-eer');
+  if(targetKcal || targetProt) {
+    let html = '<div style="margin:.5rem 0;font-size:.78rem">';
+    if(targetKcal) {
+      const pct = Math.round(r.kcalDay/targetKcal*100);
+      const cls = pct>=90&&pct<=110 ? 'ok' : pct<70||pct>120 ? 'bad' : 'warn-f';
+      html += `<div class="flag ${cls}">⚡ Energy: ${r.kcalDay} / ${targetKcal} kcal = <strong>${pct}% of target</strong></div>`;
+    }
+    if(targetProt) {
+      const pct = Math.round(r.protDay/targetProt*100);
+      const cls = pct>=90&&pct<=110 ? 'ok' : pct<70||pct>120 ? 'bad' : 'warn-f';
+      html += `<div class="flag ${cls}">🥩 Protein: ${r.protDay}g / ${targetProt}g = <strong>${pct}% of target</strong></div>`;
+    }
+    html += '</div>';
+    pctDiv.innerHTML = html;
+    pctDiv.classList.remove('section-hidden');
+  } else {
+    pctDiv.classList.add('section-hidden');
+  }
+
+  // Safety flags for paeds
+  const flags = document.getElementById('safety-flags');
+  flags.innerHTML = '';
+  if(patientType==='paeds' && ageGroup && !r.mixed) {
+    const limKey = ageGroup==='0-6m'||ageGroup==='preterm'?'0-6m':ageGroup==='6-12m'?'6-12m':ageGroup==='1-2y'?'1-2y':'older';
+    const lim = SAFETY[limKey];
+    if(lim && r.kcalPer100) {
+      const protPct = Math.round(r.protPer100 * 4 / r.kcalPer100 * 100);
+      let safeHtml = '<div style="margin-top:.5rem;font-size:.76rem"><div style="font-weight:700;color:var(--muted);margin-bottom:.3rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Fortification Limits (Shaw, 2015) — ' + lim.label + '</div>';
+      const protOk = protPct>=lim.protPctMin && protPct<=lim.protPctMax;
+      const choOk = r.choPer100 >= lim.choMin && r.choPer100 <= lim.choMax;
+      const fatOk = r.fatPer100 <= lim.fatMax;
+      safeHtml += `<div class="flag ${protOk?'ok':'bad'}">Protein: ${protPct}% energy &nbsp;[limit: ${lim.protPctMin}–${lim.protPctMax}%] ${protOk?'✓':'⚠ Outside range'}</div>`;
+      safeHtml += `<div class="flag ${choOk?'ok':'bad'}">CHO: ${r.choPer100}g/100ml &nbsp;[limit: ${lim.choMin}–${lim.choMax}g/100ml] ${choOk?'✓':'⚠ Outside range'}</div>`;
+      const fatRange = lim.fatMin ? `${lim.fatMin}–${lim.fatMax}g/100ml` : `≤${lim.fatMax}g/100ml`;
+      const fatInRange = lim.fatMin ? (r.fatPer100>=lim.fatMin && r.fatPer100<=lim.fatMax) : r.fatPer100<=lim.fatMax;
+      safeHtml += `<div class="flag ${fatInRange?'ok':'bad'}">Fat: ${r.fatPer100}g/100ml &nbsp;[limit: ${fatRange}] ${fatInRange?'✓':'⚠ Outside range'}</div>`;
+      safeHtml += '</div>';
+      flags.innerHTML = safeHtml;
+    }
+  }
+
+  document.getElementById('recipe-display').innerHTML = '';
+}
+
+function buildFormulaFeedDesc(f, vol, freq, route) {
+  let concStr = '';
+  if(f._concentrated) concStr = ` at ×${f._factor} concentration`;
+  if(f.multiConc) concStr = ` at ${peptConc} kcal/ml`;
+  return `${f.name}${concStr} ${vol}ml ×${freq}/day via ${route}`;
+}
+
+function buildEBMFortDesc(fort, fortF, vol, freq, route) {
+  if(fort.tsp===0) return `EBM ${vol}ml ×${freq}/day via ${route}`;
+  const fortName = fortF ? fortF.name : 'formula powder';
+  return `EBM fortified with ${fort.tsp} tsp ${fortName}/80ml EBM (${fort.kcal} kcal/100ml) · ${vol}ml ×${freq}/day via ${route}`;
+}
+
+function buildMixedDesc(ebmVol, ebmFreq, formulaF, fVol, fFreq, route) {
+  return `EBM ${ebmVol}ml ×${ebmFreq}/day + ${formulaF.name} ${fVol}ml ×${fFreq}/day via ${route}`;
+}
+
+function buildPrepInstructions(f, vol, freq, route, concLevel, fortLevel, fortF) {
+  // Returns array of preparation instruction lines for the notes block
+  const lines = [];
+
+  if(feedType === 'ebm') {
+    lines.push('PREPARATION:');
+    lines.push('  Use expressed breast milk (EBM).');
+    lines.push('  Thaw in refrigerator or warm in bowl of warm water.');
+    lines.push('  Do not microwave.');
+  }
+  else if(feedType === 'ebmfort') {
+    const fort = EBM_FORT[fortLevel];
+    if(fort.tsp === 0) {
+      lines.push('PREPARATION:');
+      lines.push(`  Use ${vol}ml expressed breast milk — no fortification.`);
+    } else {
+      const fortName = fortF ? fortF.name : 'formula powder';
+      const calc = fortF ? calcEBMFortification(fort.kcal, fortF) : null;
+      lines.push('PREPARATION (per feed):');
+      if(calc) {
+        const feedEbm    = Math.round(vol * calc.ebmVolPer100ml / 100);
+        const feedTsp    = Math.round(vol * calc.tspPractical / 100 * 2) / 2;
+        const feedTspStr = feedTsp===Math.round(feedTsp)?String(feedTsp):feedTsp.toFixed(1);
+        const feedPowderG = Math.round(feedTsp * 2.5 * 10)/10;
+        lines.push(`  TO MAKE ${vol}ml FORTIFIED EBM (${calc.actualKcal} kcal/100ml):`);
+        lines.push(`  1. Measure ${feedEbm}ml expressed breast milk`);
+        lines.push(`  2. Add ${feedTspStr} level tsp (${feedPowderG}g) ${fortName}`);
+        lines.push(`  3. Mix gently until fully dissolved → approx. ${vol}ml`);
+        lines.push(`  4. Feed immediately or refrigerate`);
+        lines.push('');
+        lines.push(`  Combined per 100ml:  ${calc.actualKcal} kcal · ${calc.actualProt}g protein · ${calc.actualFat}g fat · ${calc.actualCho}g CHO`);
+        if(Math.abs(calc.tspExact - calc.tspPractical) > 0.05) {
+          lines.push(`  (Exact: ${calc.tspExact.toFixed(2)} tsp/100ml → rounded to ${calc.tspStr} tsp for practicality)`);
+        }
+      } else {
+        const tspExact = fort.tsp * (vol/80);
+        const tspP = Math.round(tspExact*2)/2;
+        const tspStr = tspP===Math.round(tspP)?String(tspP):tspP.toFixed(1);
+        const ebmVol = Math.round(vol - tspP*2.5);
+        lines.push(`  TO MAKE ${vol}ml FORTIFIED EBM:`);
+        lines.push(`  1. Measure ${ebmVol}ml EBM`);
+        lines.push(`  2. Add ${tspStr} level tsp formula powder`);
+        lines.push(`  3. Mix gently → approx. ${vol}ml`);
+      }
+    }
+    lines.push('');
+    lines.push('  Thaw EBM overnight in refrigerator or warm in bowl of warm water.');
+    lines.push('  Do not microwave. Do not refreeze thawed EBM.');
+  }
+  else if(feedType === 'formula' && f) {
+    lines.push('PREPARATION (per feed):');
+    if(f.type === 'sachet') {
+      // Nutrican style
+      lines.push(`  Add 1 sachet (${f.sachetG}g) to ${f.sachetWater}ml water.`);
+      lines.push(`  Stir until fully dissolved → makes ${f.sachetVolume}ml.`);
+      if(vol !== f.sachetVolume) {
+        lines.push(`  Use ${vol}ml per feed (discard remainder promptly).`);
+      }
+    } else if(f.scoopG && f.stdWaterPerScoop) {
+      // Work out scoops needed for the requested volume
+      const factor = concLevel==='x125'?1.25:concLevel==='x15'?1.5:1.0;
+      const waterPerScoop = Math.round(f.stdWaterPerScoop / factor);
+      // How many scoops for this volume?
+      // At standard: stdWaterPerScoop water needs 1 scoop, total volume = water + displaced powder
+      // Approx: vol / (waterPerScoop + scoopG) * waterPerScoop = water needed
+      // Simpler: scoops = vol * (stdDilution*factor/100) / scoopG
+      const scoopsExact = vol * (f.stdDilution * factor / 100) / f.scoopG;
+      const scoopsRounded = Math.round(scoopsExact * 2) / 2; // round to nearest 0.5 scoop
+      const waterRaw = vol - scoopsRounded * f.scoopG;
+      const waterNeeded = Math.round(waterRaw / 5) * 5; // round to nearest 5ml
+
+      if(concLevel === 'std') {
+        lines.push(`  Add ${scoopsRounded === Math.round(scoopsRounded) ? scoopsRounded : scoopsRounded.toFixed(1)} level scoop${scoopsRounded!==1?'s':''} (${Math.round(scoopsRounded*f.scoopG)}g powder)`);
+        lines.push(`  to ${waterNeeded}ml previously boiled cooled water.`);
+        lines.push(`  Mix well → makes approx. ${vol}ml.`);
+      } else {
+        const concLabel = concLevel==='x125'?'×1.25 (84 kcal/100ml)':'×1.5 (100 kcal/100ml)';
+        lines.push(`  CONCENTRATED formula — ${concLabel}:`);
+        lines.push(`  Add ${scoopsRounded === Math.round(scoopsRounded) ? scoopsRounded : scoopsRounded.toFixed(1)} level scoop${scoopsRounded!==1?'s':''} (${Math.round(scoopsRounded*f.scoopG)}g powder)`);
+        lines.push(`  to ${waterNeeded}ml previously boiled cooled water.`);
+        lines.push(`  Mix well → makes approx. ${vol}ml.`);
+        lines.push(`  (Standard recipe is 1 scoop per ${f.stdWaterPerScoop}ml; this uses 1 per ${waterPerScoop}ml.)`);
+      }
+      lines.push('  Always add powder to water, not water to powder.');
+      lines.push('  Use level scoops — do not pack or heap.');
+    }
+  }
+  else if(feedType === 'mixed') {
+    lines.push('PREPARATION:');
+    lines.push('  EBM feeds: use expressed breast milk as per usual method.');
+    if(mixedFormula && mixedFormula.scoopG) {
+      const scoopsExact = r_global_vol * (mixedFormula.stdDilution / 100) / mixedFormula.scoopG;
+      const scoopsRounded = Math.round(scoopsExact * 4) / 4;
+      const waterNeeded = Math.round(r_global_vol - scoopsRounded * mixedFormula.scoopG);
+      lines.push(`  Formula feeds: ${scoopsRounded === Math.round(scoopsRounded) ? scoopsRounded : scoopsRounded.toFixed(1)} level scoop${scoopsRounded!==1?'s':''} + ${waterNeeded}ml water → ${r_global_vol}ml.`);
+    }
+  }
+
+  // Storage instructions (always shown)
+  lines.push('');
+  lines.push('STORAGE:');
+  if(feedType==='ebm'||feedType==='ebmfort') {
+    lines.push('  Prepared feed: use immediately or refrigerate and use within 24 hours.');
+    lines.push('  Do not refreeze thawed EBM.');
+  } else {
+    lines.push('  Prepared feed: use within 1 hour at room temperature,');
+    lines.push('  or refrigerate immediately and use within 24 hours.');
+    lines.push('  Discard any unused portion after feeding.');
+    if(f && !f.supplement) {
+      lines.push('  Once opened, store tin/box in cool dry place and use within 4 weeks.');
+    }
+  }
+
+  return lines;
+}
+
+// Global storage for vol used in mixed prep
+let r_global_vol = 0;
+
+function renderNotesOutput(r, targetKcal, targetProt, weight, ageGroup, route, vol, freq) {
+  r_global_vol = vol;
+  const lines = [];
+  const hoursInterval = freq > 0 ? (24/freq).toFixed(1) : null;
+  const intervalStr = hoursInterval ? (Number(hoursInterval)===Math.round(Number(hoursInterval)) ? `every ${Math.round(hoursInterval)} hours` : `every ${hoursInterval} hours`) : '';
+  const fd = getFluidData();
+  const tubeFed = fd.tubeFed;
+
+  lines.push('');
+
+  // ── UC2: working + prescription ──
+  if(useCase===2 && feedType!=='btf') {
+    const f2 = getEffectiveFormula();
+    if(f2 && targetKcal) {
+      const totalVolNeeded = Math.round(targetKcal / f2.kcal * 100);
+      const practical = getPracticalRec(f2, totalVolNeeded, freq);
+      lines.push('WORKING:');
+      lines.push(`  Target:   ${targetKcal} kcal/day`);
+      lines.push(`  Formula:  ${f2.kcal} kcal/100ml`);
+      lines.push(`  Volume:   ${targetKcal} ÷ ${f2.kcal} × 100 = ${totalVolNeeded}ml/day`);
+      lines.push(`            ${totalVolNeeded}ml ÷ ${freq} feeds = ${(totalVolNeeded/freq).toFixed(1)}ml/feed (rounded to ${practical?.volPractical||vol}ml)`);
+      lines.push('');
+    }
+  }
+  lines.push('');
+
+  // ── Feed name & route ──
+  if(feedType==='formula' && selectedFormula) {
+    const f = getEffectiveFormula();
+    let concStr = '';
+    if(f._concentrated) concStr = ` (×${f._factor} concentration)`;
+    if(f.multiConc) concStr = ` (${peptConc} kcal/ml)`;
+    lines.push(`Formula:  ${f.name}${concStr}`);
+  } else if(feedType==='ebm') {
+    lines.push('Feed:     Expressed Breast Milk (EBM)');
+  } else if(feedType==='ebmfort') {
+    const fort = EBM_FORT[ebmFortLevel];
+    const fortKeyN = document.getElementById('ebmFortFormula')?.value;
+    const fortFN = fortKeyN ? FORMULAS.paediatric.formulas[fortKeyN] : null;
+    const fortNameN = fortFN ? fortFN.name : 'formula powder';
+    if(fort.tsp===0) {
+      lines.push('Feed:     Expressed Breast Milk (EBM) — plain');
+    } else {
+      const calcN = fortFN ? calcEBMFortification(fort.kcal, fortFN) : null;
+      lines.push(`Feed:     Fortified EBM + ${fortNameN}`);
+      if(calcN) {
+        lines.push(`          Target: ${fort.kcal} kcal/100ml`);
+        lines.push(`          ${calcN.tspStr} tsp (${calcN.powderGPractical}g) ${fortNameN} per ${calcN.ebmVolPer100ml}ml EBM → ${calcN.actualKcal} kcal/100ml`);
+        lines.push(`          Combined: ${calcN.actualKcal} kcal · ${calcN.actualProt}g protein · ${calcN.actualFat}g fat · ${calcN.actualCho}g CHO per 100ml`);
+      } else {
+        lines.push(`          ${fort.tsp} tsp per 80ml EBM → approx. ${fort.kcal} kcal/100ml`);
+      }
+    }
+  } else if(feedType==='mixed') {
+    lines.push(`Feed:     Mixed — EBM + ${mixedFormula?.name||'formula'}`);
+  } else if(feedType==='btf') {
+    lines.push(`Feed:     Blenderised Tube Feed + ${r.fTotal?btfFormula?.name||'formula':'formula (not specified)'}`);
+    lines.push(`BTF:      ${BTF_PRESETS[btfDensity].label} — ${r.btfKcal} kcal/100ml${r.btfProt?', '+r.btfProt+'g protein/100ml':''}`);
+    lines.push(`          ⚠ Nutritional values are estimates — verify with recipe analysis`);
+  }
+  lines.push(`Route:    ${route}`);
+  if(r.scoopBased) lines.push('Note:     Intake estimated from scoops (non-standard dilution assumed)');
+  lines.push('');
+
+  // ── Feeding schedule ──
+  lines.push('FEEDING SCHEDULE:');
+  if(feedType==='mixed') {
+    lines.push(`  EBM:     ${r.ebmVol}ml × ${r.ebmFreq} feeds/day`);
+    const ebmInterval = r.ebmFreq > 0 ? (24/r.ebmFreq).toFixed(1) : null;
+    if(ebmInterval) lines.push(`           (every ${Number(ebmInterval)===Math.round(Number(ebmInterval))?Math.round(ebmInterval):ebmInterval} hours)`);
+    lines.push(`  Formula: ${vol}ml × ${freq} feeds/day`);
+    if(intervalStr) lines.push(`           (${intervalStr})`);
+    lines.push(`  Total:   ${r.totalVol}ml/day`);
+  } else if(r.scoopBased) {
+    lines.push(`  ${r.scoopsPerFeed} scoop${r.scoopsPerFeed!==1?'s':''} per feed  (${r.powderPerFeed}g powder)`);
+    lines.push(`  ${freq} feeds per day  (${intervalStr})`);
+    lines.push(`  Equiv. vol at std dilution: ~${vol}ml/feed · ${r.totalVol}ml/day`);
+  } else if(r.btfBased) {
+    lines.push(`  BTF:     ${r.btfVol}ml × ${r.btfFreq} feeds/day = ${r.btfTotal}ml`);
+    if(r.fTotal) lines.push(`  Formula: ${r.fVol}ml × ${r.fFreq} feeds/day = ${r.fTotal}ml`);
+    lines.push(`  Total:   ${r.totalVol}ml/day`);
+  } else {
+    lines.push(`  ${vol}ml per feed`);
+    lines.push(`  ${freq} feeds per day  (${intervalStr})`);
+    lines.push(`  Total volume: ${r.totalVol}ml/day`);
+  }
+  lines.push('');
+
+  // ── Preparation — UC2 only (prescription), not UC1 (assessment) ──
+  if(useCase===2 || feedType==='btf') {
+    const f = feedType==='formula' ? getEffectiveFormula() : null;
+    const fortKey = document.getElementById('ebmFortFormula')?.value;
+    const fortF = fortKey ? FORMULAS.paediatric.formulas[fortKey] : null;
+    const prepLines = buildPrepInstructions(f, vol, freq, route, formulaConc, ebmFortLevel, fortF);
+    lines.push(...prepLines);
+    lines.push('');
+  }
+
+  // ── Admin note for UC2 tube-fed ──
+  if(useCase===2 && tubeFed) {
+    lines.push('ADMINISTRATION:');
+    lines.push('  Administer feed immediately upon delivery to the ward.');
+    lines.push('  Do not store prepared feed at room temperature for more than 1 hour.');
+    lines.push('  Discard any unused portion after feeding.');
+    lines.push('');
+  }
+
+  const feedVol = r.totalVol || 0;
+  const totalFluidDay = feedVol + fd.flushTotal + fd.extraFlushTotal + (fd.ivVolDay||0);
+  const isPaeds = patientType === 'paeds';
+
+  // ── Fluid & IV — paeds gets one-liner, adults get full section ──
+  if(!isPaeds) {
+    // Adult: full fluid balance section
+    if(tubeFed || fd.flushTotal > 0 || fd.extraFlushTotal > 0) {
+      lines.push('FLUID BALANCE:');
+      lines.push(`  Fluid from feed:              ${feedVol}ml/day`);
+      if(fd.flushTotal > 0) {
+        lines.push(`  Fluid from feed flushes:      ${fd.flushTotal}ml/day  (${fd.flushVol}ml pre & ${fd.flushVol}ml post × ${fd.flushFreq} feeds)`);
+      }
+      if(fd.extraFlushTotal > 0) {
+        lines.push(`  Fluid from additional flushes:${fd.extraFlushTotal}ml/day  (${fd.extraFlushVol}ml × ${fd.extraFlushFreq})`);
+      }
+      if(fd.ivVolDay > 0) lines.push(`  Fluid from IV:                ${Math.round(fd.ivVolDay)}ml/day`);
+      lines.push(`  Total:                        ${Math.round(totalFluidDay)}ml/day`);
+      if(fd.fluidTarget) {
+        const pct = Math.round(totalFluidDay/fd.fluidTarget*100);
+        const src = fd.manualTarget?'prescribed':'Holliday-Segar/NEMO';
+        lines.push(`  EFR:                          ${fd.fluidTarget}ml/day (${src})`);
+        const remaining = fd.fluidTarget - Math.round(totalFluidDay);
+        lines.push(`  Coverage:                     ${pct}% of EFR${remaining>0?`  ·  ${remaining}ml remaining`:'  ✓'}`);
+      }
+      lines.push('');
+    }
+    if(fd.ivType && fd.ivRate) {
+      lines.push('IV FLUIDS:');
+      const rateStr = fd.ivRateType==='hr'?`${fd.ivRate}ml/hr (${Math.round(fd.ivVolDay)}ml/day)`:`${fd.ivRate}ml/day`;
+      lines.push(`  ${fd.ivName}  —  ${rateStr}`);
+      if(fd.ivKcalDay>0) lines.push(`  Energy from IV: ${fd.ivKcalDay} kcal/day`);
+      else lines.push('  No caloric contribution (electrolyte solution)');
+      lines.push('');
+    }
+  }
+
+  // ── Nutritional content ──
+  lines.push('NUTRITIONAL CONTENT (estimated):');
+  const kcalKg = weight ? `  (${(r.kcalDay/weight).toFixed(1)} kcal/kg)` : '';
+  const protKg  = weight ? `  (${(r.protDay/weight).toFixed(2)} g/kg)` : '';
+  const totalKcalWithIV = r.kcalDay + (fd.ivKcalDay||0);
+
+  lines.push(`  Energy:       ${r.kcalDay} kcal/day${kcalKg}${fd.ivKcalDay>0?' + '+fd.ivKcalDay+' kcal IV = '+totalKcalWithIV+' kcal total':''}`);
+  lines.push(`  Protein:      ${r.protDay} g/day${protKg}`);
+  lines.push(`  Fat:          ${r.fatDay} g/day`);
+  lines.push(`  Carbohydrate: ${r.choDay} g/day`);
+  if(r.naDay) lines.push(`  Sodium:       ${r.naDay} mg/day`);
+  if(r.kDay)  lines.push(`  Potassium:    ${r.kDay} mg/day`);
+
+  if(targetKcal || targetProt || fd.fluidTarget) {
+    lines.push('');
+    if(targetKcal) lines.push(`  Energy:  ${Math.round(totalKcalWithIV/targetKcal*100)}% of EER  (${totalKcalWithIV} of ${targetKcal} kcal/day)`);
+    if(targetProt) lines.push(`  Protein: ${Math.round(r.protDay/targetProt*100)}% of EPR  (${r.protDay}g of ${targetProt}g/day)`);
+    // Paeds: fluid as one line here
+    if(isPaeds && fd.fluidTarget) {
+      const pct = Math.round(totalFluidDay/fd.fluidTarget*100);
+      const parts = [`${feedVol}ml feeds`];
+      if(fd.flushTotal) parts.push(`${fd.flushTotal}ml feed flushes`);
+      if(fd.extraFlushTotal) parts.push(`${fd.extraFlushTotal}ml additional flushes`);
+      if(fd.ivVolDay) parts.push(`${Math.round(fd.ivVolDay)}ml IV`);
+      lines.push(`  Fluid:   ${pct}% of EFR  (${parts.join(' + ')} = ${Math.round(totalFluidDay)}ml of ${fd.fluidTarget}ml/day)`);
+    } else if(!isPaeds && fd.fluidTarget) {
+      const pct = Math.round(totalFluidDay/fd.fluidTarget*100);
+      lines.push(`  Fluid:   ${pct}% of EFR  (${Math.round(totalFluidDay)}ml of ${fd.fluidTarget}ml/day)`);
+    }
+  }
+
+  // UC2 paeds: add fortification limits table from Shaw 2015
+  if(useCase===2 && isPaeds && ageGroup) {
+    const limKey = ageGroup==='0-6m'||ageGroup==='preterm'?'0-6m':ageGroup==='6-12m'?'6-12m':ageGroup==='1-2y'?'1-2y':'older';
+    const lim = SAFETY[limKey];
+    if(lim && r.kcalPer100) {
+      const protPct = Math.round(r.protPer100 * 4 / r.kcalPer100 * 100);
+      const protOk = protPct>=lim.protPctMin && protPct<=lim.protPctMax;
+      const choOk = r.choPer100>=lim.choMin && r.choPer100<=lim.choMax;
+      const fatOk = lim.fatMin ? (r.fatPer100>=lim.fatMin && r.fatPer100<=lim.fatMax) : r.fatPer100<=lim.fatMax;
+      lines.push('');
+      lines.push(`Fortification limits (Shaw, 2015) — ${lim.label}:`);
+      lines.push(`  Protein:  ${protPct}% energy  [${lim.protPctMin}–${lim.protPctMax}%]  ${protOk?'✓':'⚠'}`);
+      lines.push(`  CHO:      ${r.choPer100}g/100ml  [${lim.choMin}–${lim.choMax}g/100ml]  ${choOk?'✓':'⚠'}`);
+      const fatRangeN = lim.fatMin ? `${lim.fatMin}–${lim.fatMax}g/100ml` : `≤${lim.fatMax}g/100ml`;
+      const fatOkN = lim.fatMin ? (r.fatPer100>=lim.fatMin && r.fatPer100<=lim.fatMax) : r.fatPer100<=lim.fatMax;
+      lines.push(`  Fat:      ${r.fatPer100}g/100ml  [${fatRangeN}]  ${fatOkN?'✓':'⚠'}`);
+      if(formulaConc && formulaConc!=='std') {
+        lines.push(`  ⚠ Concentrated formula — introduce gradually and monitor tolerance.`);
+      }
+    }
+  }
+
+  // UC2 tube-fed: remaining fluid note (flushes already counted in fluid line above)
+  if(useCase===2 && tubeFed && fd.fluidTarget) {
+    const remaining = fd.fluidTarget - Math.round(totalFluidDay);
+    if(remaining > 0) {
+      lines.push('');
+      lines.push(`Remaining to EFR: ${remaining}ml/day — consider additional water flushes or IV supplementation`);
+    }
+  }
+
+  document.getElementById('output-text').textContent = lines.join('\n');
+}
+
+// ── BTF Notes ─────────────────────────────────────────────────────────────────
+function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
+  const lines = [];
+  const fd = getFluidData();
+  const {fVol, fFreq, scoopBased, scoops} = getBTFFormulaVolFreq();
+  const totalFeeds = r.btfFreq + (fFreq||0);
+  const flushVol   = fd.flushVol;
+  const flushPer   = fd.flushPer;
+  const flushTotal = flushVol * flushPer * totalFeeds;
+  const feedFluid  = r.totalVol || 0;
+  const totalFluid = feedFluid + flushTotal + fd.extraFlushTotal + (fd.ivVolDay||0);
+  const intervalEl = document.getElementById('btf-interval');
+  const intervalMin = parseInt(intervalEl?.value)||180;
+  const intervalLabel = {120:'Q2H',180:'Q3H',240:'Q4H',360:'Q6H'}[intervalMin]||'';
+
+  if(btfUseCase===1) {
+    // ── UC1: Estimated intake ──────────────────────────────────────────────────
+    lines.push('ESTIMATED INTAKE:');
+    lines.push('');
+    lines.push(`BTF:     ${r.btfVol}ml × ${r.btfFreq} feeds = ${r.btfTotal}ml → ${r.btfKcalDay} kcal, ${r.btfProtDay}g protein`);
+    if(fVol && fFreq && btfFormula) {
+      if(scoopBased && scoops) {
+        lines.push(`Formula: ${scoops} scoops/feed → ~${fVol}ml × ${fFreq} feeds = ${fVol*fFreq}ml → ${r.fKcalDay} kcal, ${r.fProtDay}g protein`);
+      } else {
+        lines.push(`Formula: ${fVol}ml × ${fFreq} feeds = ${fVol*fFreq}ml → ${r.fKcalDay} kcal, ${r.fProtDay}g protein`);
+      }
+    }
+    if(flushTotal) lines.push(`Flush:   ${flushVol}ml pre & ${flushVol}ml post feeds × ${totalFeeds} feeds = ${flushTotal}ml`);
+    if(fd.extraFlushTotal) lines.push(`Extra flushes: ${fd.extraFlushTotal}ml/day`);
+    lines.push('');
+    const totalKcalWithIV = r.kcalDay + (fd.ivKcalDay||0);
+    lines.push(`Total:   ${r.kcalDay} kcal, ${r.protDay}g protein/day, ${Math.round(feedFluid+flushTotal)}ml fluid`);
+    if(fd.ivKcalDay>0) lines.push(`         + ${fd.ivKcalDay} kcal from IV = ${totalKcalWithIV} kcal total`);
+    lines.push('');
+    const parts = [];
+    if(targetKcal) parts.push(`${Math.round(totalKcalWithIV/targetKcal*100)}% EER`);
+    if(targetProt) parts.push(`${Math.round(r.protDay/targetProt*100)}% EPR`);
+    if(fd.fluidTarget) parts.push(`${Math.round(totalFluid/fd.fluidTarget*100)}% EFR`);
+    if(parts.length) lines.push(`Current intake meets: ${parts.join('  ·  ')}`);
+
+  } else {
+    // ── UC2: Prescription ─────────────────────────────────────────────────────
+    const startStr = document.getElementById('btf-start-time')?.value||'07:00';
+    const [startH,startM] = startStr.split(':').map(Number);
+
+    // Header line
+    lines.push(`${route} ${intervalLabel} ${fVol||'?'}ml ${totalFeeds} feeds/day`
+      + (flushVol ? ` with ${flushVol}ml water flush pre & ${flushVol}ml water flush post feeds` : ''));
+    lines.push('');
+
+    if(btfFormula) lines.push(`Formula: ${btfFormula.name} (${btfFormula.kcal} kcal/100ml | ${btfFormula.protein}g protein/100ml)`);
+    lines.push(`Blended Tube Feeds (${r.btfKcal} kcal/100ml | ${r.btfProt||'?'}g protein/100ml)`);
+    lines.push('');
+
+    // Schedule
+    lines.push('FEEDING SCHEDULE:');
+    const slots=[];
+    let mc=startH*60+startM;
+    for(let i=0;i<totalFeeds;i++){slots.push({min:mc,type:null});mc+=intervalMin;}
+    const btfIndices=new Set();
+    if(r.btfFreq>=totalFeeds){slots.forEach((_,i)=>btfIndices.add(i));}
+    else{
+      for(let i=0;i<r.btfFreq;i++){const idx=Math.round(i*totalFeeds/r.btfFreq);btfIndices.add(Math.min(idx,totalFeeds-1));}
+      let c=btfIndices.size;
+      for(let i=0;i<totalFeeds&&c<r.btfFreq;i++){if(!btfIndices.has(i)){btfIndices.add(i);c++;}}
+    }
+    slots.forEach((s,i)=>s.type=btfIndices.has(i)?'btf':'formula');
+    const mealInputs=document.querySelectorAll('.btf-meal-name-input');
+    let btfIdx=0;
+    slots.forEach(s=>{
+      const t=minToTime(s.min);
+      if(s.type==='btf'){
+        const name=mealInputs[btfIdx]?.value||`BTF Feed ${btfIdx+1}`;
+        lines.push(`${t}:  BTF — ${name}`);
+        btfIdx++;
+      } else {
+        lines.push(`${t}:  ${btfFormula?.name||'Formula'}`);
+      }
+    });
+    lines.push('');
+
+    // Dilution — per day total scoops
+    if(btfFormula && fVol && btfFormula.scoopG && btfFormula.stdDilution) {
+      const scoopsPerFeed = scoopBased && scoops ? scoops : fVol*(btfFormula.stdDilution/100)/btfFormula.scoopG;
+      const scoopsPerDay  = scoopsPerFeed * fFreq;
+      const scoopsR = Math.round(scoopsPerFeed*2)/2;
+      const water   = Math.round(fVol - scoopsR*btfFormula.scoopG);
+      const sLabel  = scoopsR===Math.round(scoopsR)?scoopsR:scoopsR.toFixed(1);
+      lines.push('PREPARATION (per formula feed):');
+      lines.push(`Add ${sLabel} level scoop${scoopsR!==1?'s':''} (${Math.round(scoopsR*btfFormula.scoopG)}g) to ${water}ml water.`);
+      lines.push(`Mix well → makes approx. ${fVol}ml. Use level scoops, do not pack or heap.`);
+      lines.push('');
+    }
+
+    // F&B instruction — paediatric only
+    if(patientType==='paeds') {
+      lines.push('FOOD SERVICE INSTRUCTIONS:');
+      lines.push(`Diet code: ${r.btfVol}ml Blended Tube Feeds`);
+      lines.push(`Diet  B: ${r.btfVol}ml  L: ${r.btfVol}ml  D: ${r.btfVol}ml`);
+      lines.push('Blended feeds cannot be left out for more than 2 hours from preparation time.');
+      lines.push('Please administer/encourage bystander to administer feed immediately once');
+      lines.push('delivered from the kitchen to maintain food safety.');
+      lines.push('');
+    }
+
+    // Nutritional content
+    const totalKcalWithIV = r.kcalDay + (fd.ivKcalDay||0);
+    lines.push('NUTRITIONAL CONTENT:');
+    const kcalStr = r.fKcalDay ? `${r.btfKcalDay} + ${r.fKcalDay} = ${r.kcalDay} kcal/day` : `${r.kcalDay} kcal/day`;
+    const protStr = r.fProtDay ? `${r.btfProtDay} + ${r.fProtDay} = ${r.protDay}g/day` : `${r.protDay}g/day`;
+    lines.push(`Energy:    ${kcalStr}${targetKcal?' ('+Math.round(r.kcalDay/targetKcal*100)+'% of EER)':''}`);
+    if(fd.ivKcalDay>0) lines.push(`           + ${fd.ivKcalDay} kcal IV = ${totalKcalWithIV} kcal total`);
+    lines.push(`Protein:   ${protStr}${targetProt?' ('+Math.round(r.protDay/targetProt*100)+'% of EPR)':''}`);
+    if(r.naDay) lines.push(`Sodium:    ${r.naDay}mg/day (from formula)`);
+    if(r.kDay)  lines.push(`Potassium: ${r.kDay}mg/day (from formula)`);
+    lines.push('');
+    // Fluid
+    const fluidParts=[`${feedFluid}ml from feeds`];
+    if(flushTotal) fluidParts.push(`${flushTotal}ml from feed flushes`);
+    if(fd.extraFlushTotal) fluidParts.push(`${fd.extraFlushTotal}ml additional flushes`);
+    if(fd.ivVolDay) fluidParts.push(`${Math.round(fd.ivVolDay)}ml IV`);
+    const fluidStr = fluidParts.join(' + ') + ` = ${Math.round(totalFluid)}ml/day`;
+    lines.push(`Fluid:     ${fluidStr}${fd.fluidTarget?' ('+Math.round(totalFluid/fd.fluidTarget*100)+'% of EFR)':''}`);
+    if(fd.fluidTarget) {
+      const rem = fd.fluidTarget - Math.round(totalFluid);
+      if(rem>0) lines.push(`           Remaining to EFR: ${rem}ml/day`);
+    }
+    if(scoopBased) lines.push(`
+⚠ Formula volume is approximate (scoop-based). Adjust flush/IV if needed to meet EFR.`);
+  }
+
+  document.getElementById('output-text').textContent = lines.join('\n');
+}
+
+// ── Copy ──────────────────────────────────────────────────────────────────────
+function copyOutput() {
+  const text = document.getElementById('output-text').textContent;
+  const btn = document.getElementById('copy-btn');
+  if(navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(()=>flash(btn)).catch(()=>fbCopy(text,btn));
+  } else fbCopy(text,btn);
+}
+function fbCopy(text,btn) {
+  const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');flash(btn);}catch(e){btn.textContent='Long-press to copy';}
+  document.body.removeChild(ta);
+}
+function flash(btn){btn.textContent='✓ Copied';btn.classList.add('done');setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('done');},2000);}
+
+function clearAll() {
+  document.getElementById('formulaSelect').value='';
+  document.getElementById('volPerFeed').value='';
+  document.getElementById('feedsPerDay').value='';
+  document.getElementById('totalVol').value='';
+  document.getElementById('uc2-freq').value='';
+  document.getElementById('uc2-vol').value='';
+  document.getElementById('uc2-working').classList.add('section-hidden');
+  document.getElementById('uc2-freq-hint').textContent='';
+  document.getElementById('uc2-vol-hint').textContent='';
+  document.getElementById('output-section').style.display='none';
+  selectedFormula=null;
+  document.getElementById('formula-info-box').classList.add('section-hidden');
+  document.getElementById('formula-conc-section').classList.add('section-hidden');
+  document.getElementById('peptjnr-conc').classList.add('section-hidden');
+}
+
+init();
+</script>
+</body>
+</html>
