@@ -57,6 +57,12 @@ details.card-collapsible>summary::-webkit-details-marker{display:none}
 details.card-collapsible[open]>summary{margin-bottom:.9rem}
 details.card-collapsible>summary::after{content:'▸';margin-left:auto;color:var(--muted);font-size:.9rem;font-weight:400}
 details.card-collapsible[open]>summary::after{content:'▾'}
+/* ── BTF section: tidy sub-headers + ingredient grouping ── */
+.sub-head{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:.9rem 0 .5rem;padding-left:.55rem;border-left:3px solid var(--accent);line-height:1.25}
+.sub-head .sub-note{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:.7rem}
+.btf-group{background:var(--light);border:1px solid var(--border);border-radius:10px;padding:.5rem .8rem .85rem;margin-top:.9rem}
+.btf-group>.sub-head:first-child,.btf-group>div:first-child>.sub-head{margin-top:.3rem}
+.btf-grouptitle{display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:800;color:var(--text);margin:.9rem 0 0}
 .tabs{display:flex;gap:.5rem;margin-bottom:1rem}
 .tab{flex:1;padding:.55rem;border:2px solid var(--border);border-radius:8px;background:var(--light);font-size:.8rem;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;color:var(--muted)}
 .tab.active.paeds{border-color:var(--paeds);background:#e8f5f1;color:var(--paeds)}
@@ -416,9 +422,11 @@ select:focus,input:focus{border-color:var(--accent)}
       </div>
     </div>
 
-    <!-- BTF density -->
-    <div style="margin-top:.7rem">
-      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Blended feed density</div>
+    <!-- Blended feed group -->
+    <div class="btf-group">
+    <div class="btf-grouptitle">🥣 Blended feed (BTF)</div>
+    <div style="margin-top:0">
+      <div class="sub-head">Blended feed density</div>
       <div class="conc-row">
         <div class="conc-btn active" id="btf-low" onclick="setBTFDensity('low')">Low<br><small>~0.75 kcal/ml</small></div>
         <div class="conc-btn" id="btf-std" onclick="setBTFDensity('std')">Standard<br><small>~1.0 kcal/ml</small></div>
@@ -439,7 +447,7 @@ select:focus,input:focus{border-color:var(--accent)}
     </div>
 
     <!-- BTF feeds -->
-    <div style="margin-top:.8rem;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">BTF feeds</div>
+    <div class="sub-head">BTF feeds</div>
     <div class="g2">
       <div>
         <label>Volume per BTF feed (ml)</label>
@@ -453,12 +461,15 @@ select:focus,input:focus{border-color:var(--accent)}
 
     <!-- BTF meal names (UC2 only) - rendered by JS based on btf-freq -->
     <div id="btf-meal-names" class="section-hidden" style="margin-top:.5rem">
-      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">BTF Meal Names <span style="font-weight:400;color:var(--muted)">(one per BTF feed)</span></div>
+      <div class="sub-head">BTF Meal Names <span class="sub-note">(one per BTF feed)</span></div>
       <div id="btf-meal-inputs"></div>
     </div>
+    </div><!-- /blended feed group -->
 
-    <!-- Formula feeds -->
-    <div style="margin-top:.8rem;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Formula feeds</div>
+    <!-- Formula group -->
+    <div class="btf-group">
+    <div class="btf-grouptitle">🍼 Formula</div>
+    <div class="sub-head">Formula feeds</div>
     <select id="btfFormulaSelect" onchange="onBTFFormulaChange()">
       <option value="">— select formula —</option>
     </select>
@@ -534,10 +545,11 @@ select:focus,input:focus{border-color:var(--accent)}
         <div id="btf-uc2-working-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
       </div>
     </div>
+    </div><!-- /formula group -->
 
     <!-- Schedule (UC2 only) -->
     <div id="btf-schedule-section" class="section-hidden" style="margin-top:.8rem">
-      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Feeding Schedule</div>
+      <div class="sub-head">Feeding Schedule</div>
       <div class="g2" style="margin-bottom:.5rem">
         <div>
           <label>First feed time</label>
@@ -558,7 +570,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
     <!-- F&B instruction preview (UC2 only) - auto from btf-vol -->
     <div id="btf-fnb-section" class="section-hidden" style="margin-top:.8rem">
-      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem">Food Service Instructions</div>
+      <div class="sub-head">Food Service Instructions</div>
       <div id="btf-fnb-preview" style="background:#fef9ec;border:1px solid #fcd34d;border-radius:7px;padding:.5rem .7rem;font-size:.78rem;color:#78350f;font-family:monospace;white-space:pre-wrap"></div>
     </div>
 
