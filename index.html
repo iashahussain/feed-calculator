@@ -48,7 +48,15 @@ header h1 span{color:var(--accent)}
 header p{font-size:.82rem;color:var(--muted);margin-top:.3rem}
 .app{max-width:680px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow)}
-.ct{font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem}
+.ct{display:flex;align-items:center;gap:.5rem;font-size:.98rem;font-weight:800;letter-spacing:0;text-transform:none;color:var(--text);margin-bottom:.9rem}
+.step-badge{display:inline-flex;align-items:center;justify-content:center;width:1.45rem;height:1.45rem;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;font-weight:800;flex:none}
+.opt-tag{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:20px;padding:.12rem .5rem}
+.flow-hint{font-size:.78rem;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;margin-bottom:1rem;line-height:1.45}
+details.card-collapsible>summary{cursor:pointer;list-style:none;user-select:none;margin-bottom:0}
+details.card-collapsible>summary::-webkit-details-marker{display:none}
+details.card-collapsible[open]>summary{margin-bottom:.9rem}
+details.card-collapsible>summary::after{content:'▸';margin-left:auto;color:var(--muted);font-size:.9rem;font-weight:400}
+details.card-collapsible[open]>summary::after{content:'▾'}
 .tabs{display:flex;gap:.5rem;margin-bottom:1rem}
 .tab{flex:1;padding:.55rem;border:2px solid var(--border);border-radius:8px;background:var(--light);font-size:.8rem;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;color:var(--muted)}
 .tab.active.paeds{border-color:var(--paeds);background:#e8f5f1;color:var(--paeds)}
@@ -249,9 +257,11 @@ select:focus,input:focus{border-color:var(--accent)}
 <!-- Gear button -->
 <button class="settings-gear" onclick="openSettings()" title="Settings">⚙</button>
 
+<div class="flow-hint">Work through the steps top to bottom, then tap <strong>Calculate</strong> at the bottom. Sections marked <span class="opt-tag">optional</span> can be left collapsed.</div>
+
 <!-- PATIENT INFO -->
 <div class="card">
-  <div class="ct">Patient & Requirements</div>
+  <div class="ct"><span class="step-badge">1</span>Patient &amp; requirements</div>
   <div class="g2">
     <div>
       <label>Weight (kg)</label>
@@ -293,7 +303,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- FEED TYPE -->
 <div class="card">
-  <div class="ct">Feed Type</div>
+  <div class="ct"><span class="step-badge">2</span>Feed type &amp; formula</div>
   <div class="tabs">
     <div class="tab paeds active" id="tab-paeds" onclick="setPatientType('paeds')">👶 Paediatric</div>
     <div class="tab adult" id="tab-adult" onclick="setPatientType('adult')">🧑 Adult</div>
@@ -562,7 +572,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- USE CASE SELECTOR -->
 <div class="card" id="uc-card">
-  <div class="ct">What do you want to calculate?</div>
+  <div class="ct"><span class="step-badge">3</span>What do you want to calculate?</div>
   <div class="tabs">
     <div class="tab paeds active" id="uc-tab-1" onclick="setUseCase(1)">
       📋 Estimate current intake
@@ -670,8 +680,8 @@ select:focus,input:focus{border-color:var(--accent)}
 </div>
 
 <!-- FLUIDS & IV CARD -->
-<div class="card" id="fluids-card">
-  <div class="ct">Fluids & IV</div>
+<details class="card card-collapsible" id="fluids-card">
+  <summary class="ct">Fluids &amp; IV <span class="opt-tag">optional</span></summary>
 
   <!-- Water flushes — tube-fed only, shown/hidden by route -->
   <div id="flush-section" style="display:none">
@@ -754,7 +764,7 @@ select:focus,input:focus{border-color:var(--accent)}
     <div id="fluid-summary-total" style="font-size:.88rem;font-weight:800;color:#0369a1"></div>
     <div id="fluid-summary-efr" style="font-size:.74rem;color:#075985;margin-top:.2rem"></div>
   </div>
-</div>
+</details>
 
 <!-- CALCULATE -->
 <button class="btn btn-primary" id="calc-btn" onclick="calculate()">Calculate intake</button>
@@ -985,6 +995,10 @@ function updateFluidsCard() {
   const tubeFed = isTubeFed();
   const flush = document.getElementById('flush-section');
   if(flush) flush.style.display = tubeFed ? '' : 'none';
+  // Auto-expand the (collapsed) Fluids & IV card when the user picks a tube
+  // route after load — but keep it collapsed on first paint to reduce clutter.
+  const fc = document.getElementById('fluids-card');
+  if(fc && tubeFed && window._appReady) fc.open = true;
   // Sync feeds/day from whichever input is active
   syncFlushFeeds();
   updateFlushPreview();
@@ -1749,6 +1763,7 @@ function init() {
   showFeedSection();
   setBTFDensity('std');
   updateFluidsCard();
+  window._appReady = true;
 }
 
 function populateFormulaSelects() {
