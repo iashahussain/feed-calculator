@@ -63,6 +63,15 @@ details.card-collapsible[open]>summary::after{content:'▾'}
 .btf-group{background:var(--light);border:1px solid var(--border);border-radius:10px;padding:.5rem .8rem .85rem;margin-top:.9rem}
 .btf-group>.sub-head:first-child,.btf-group>div:first-child>.sub-head{margin-top:.3rem}
 .btf-grouptitle{display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:800;color:var(--text);margin:.9rem 0 0}
+/* ── Prep cheat sheet table ── */
+.prep-sheet .prep-ratio{font-size:.72rem;color:var(--muted);margin:.35rem 0 .15rem}
+.prep-table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.2rem}
+.prep-table th{text-align:left;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;padding:.25rem .45rem;border-bottom:1.5px solid var(--border)}
+.prep-table th:last-child,.prep-table td:last-child{text-align:right}
+.prep-table td{padding:.34rem .45rem;border-bottom:1px solid var(--border)}
+.prep-table tbody tr:nth-child(odd){background:#f8fafc}
+.prep-table td:first-child{font-weight:800;color:var(--accent)}
+.prep-foot{font-size:.66rem;color:var(--muted);margin-top:.4rem;line-height:1.45}
 .tabs{display:flex;gap:.5rem;margin-bottom:1rem}
 .tab{flex:1;padding:.55rem;border:2px solid var(--border);border-radius:8px;background:var(--light);font-size:.8rem;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;color:var(--muted)}
 .tab.active.paeds{border-color:var(--paeds);background:#e8f5f1;color:var(--paeds)}
@@ -1941,6 +1950,47 @@ function buildAvailabilityHTML(key) {
   return html;
 }
 
+// Bedside prep cheat sheet: scoops/water for common volumes at standard dilution.
+// Uses the same reconstitution model as the rest of the tool (see getPracticalRec):
+// scoops = vol × stdDilution% / scoopG, rounded to nearest ½; water = scoops × stdWaterPerScoop.
+function buildPrepSheet(f) {
+  if(!f) return '';
+  let rows = '', headUnit = '', ratio = '';
+  if(f.type === 'sachet' && f.sachetG && f.sachetVolume && f.sachetWater) {
+    headUnit = 'Sachets (powder)';
+    ratio = `1 sachet (${f.sachetG} g) + ${f.sachetWater} ml water → ${f.sachetVolume} ml`;
+    [0.5, 1, 1.5, 2, 3].forEach(n => {
+      const vol = Math.round(n * f.sachetVolume);
+      const water = Math.round(n * f.sachetWater);
+      const grams = Math.round(n * f.sachetG);
+      const kcal = f.kcal ? Math.round(f.kcal * vol / 100) : '—';
+      const lbl = n === Math.round(n) ? n : n.toFixed(1);
+      rows += `<tr><td>${vol} ml</td><td>${lbl} (${grams} g)</td><td>${water} ml</td><td>${kcal}</td></tr>`;
+    });
+  } else if(f.scoopG && f.stdDilution && f.stdWaterPerScoop) {
+    headUnit = 'Scoops (powder)';
+    ratio = `1 scoop (${f.scoopG} g) + ${f.stdWaterPerScoop} ml water → ~${Math.round(f.scoopG + f.stdWaterPerScoop)} ml`
+      + (f.multiConc ? ' · at standard 1.0 strength' : '');
+    [30, 60, 90, 120, 150, 180, 210, 240].forEach(vol => {
+      const scoopsR = Math.round(vol * (f.stdDilution / 100) / f.scoopG * 2) / 2;
+      if(scoopsR <= 0) return;
+      const water = Math.round(scoopsR * f.stdWaterPerScoop);
+      const grams = Math.round(scoopsR * f.scoopG);
+      const lbl = scoopsR === Math.round(scoopsR) ? scoopsR : scoopsR.toFixed(1);
+      const kcal = f.kcal ? Math.round(f.kcal * vol / 100) : '—';
+      rows += `<tr><td>${vol} ml</td><td>${lbl} (${grams} g)</td><td>${water} ml</td><td>${kcal}</td></tr>`;
+    });
+  } else {
+    return ''; // supplements / no standard-dilution data
+  }
+  return `<details class="fi-details prep-sheet">
+      <summary>📋 Prep cheat sheet — standard dilution</summary>
+      <div class="prep-ratio">${ratio}</div>
+      <table class="prep-table"><thead><tr><th>Make</th><th>${headUnit}</th><th>Water</th><th>kcal</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="prep-foot">Level scoops; add powder to the measured water. Scoops rounded to nearest ½ — always verify against the tin.</div>
+    </details>`;
+}
+
 function renderFormulaInfo(f, boxId, key) {
   const box = document.getElementById(boxId);
   if(!f) { box.classList.add('section-hidden'); return; }
@@ -2066,6 +2116,7 @@ function renderFormulaInfo(f, boxId, key) {
         ${scoopHTML}
       </details>
       ${dilutionHTML}
+      ${buildPrepSheet(f)}
 
       ${f.notes ? `<div style="margin-top:.5rem;color:var(--muted);font-size:.72rem;line-height:1.4">${f.notes.replace(/NOT suitable for cows' milk protein allergy/g,'<strong style="color:var(--danger)">⚠ NOT suitable for cows\' milk protein allergy</strong>')}</div>` : ''}
       ${buildAvailabilityHTML(key)}
