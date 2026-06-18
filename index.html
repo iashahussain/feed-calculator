@@ -49,7 +49,11 @@ header p{font-size:.82rem;color:var(--muted);margin-top:.3rem}
 .app{max-width:680px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow)}
 .ct{display:flex;align-items:center;gap:.5rem;font-size:.98rem;font-weight:800;letter-spacing:0;text-transform:none;color:var(--text);margin-bottom:.9rem}
-.step-badge{display:inline-flex;align-items:center;justify-content:center;width:1.45rem;height:1.45rem;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;font-weight:800;flex:none}
+.step-badge{display:inline-flex;align-items:center;justify-content:center;width:1.45rem;height:1.45rem;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;font-weight:800;flex:none;transition:background .2s}
+.step-badge.done{background:var(--success)}
+.calc-readiness{font-size:.78rem;color:#92400e;background:#fff8e8;border:1px solid #fcd34d;border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;text-align:center}
+.btn-primary.ready{animation:readypulse 1.7s ease-in-out infinite}
+@keyframes readypulse{0%,100%{box-shadow:0 6px 18px rgba(26,107,92,.3)}50%{box-shadow:0 0 0 4px rgba(22,163,74,.4),0 6px 18px rgba(26,107,92,.3)}}
 .opt-tag{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:20px;padding:.12rem .5rem}
 .flow-hint{font-size:.78rem;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;margin-bottom:1rem;line-height:1.45}
 details.card-collapsible>summary{cursor:pointer;list-style:none;user-select:none;margin-bottom:0}
@@ -278,7 +282,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- PATIENT INFO -->
 <div class="card">
-  <div class="ct"><span class="step-badge">1</span>Patient &amp; requirements</div>
+  <div class="ct"><span class="step-badge" id="sb1">1</span>👤 Patient &amp; requirements</div>
   <div class="g2">
     <div>
       <label>Weight (kg)</label>
@@ -320,7 +324,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- FEED TYPE -->
 <div class="card">
-  <div class="ct"><span class="step-badge">2</span>Feed type &amp; formula</div>
+  <div class="ct"><span class="step-badge" id="sb2">2</span>🍽️ Feed type &amp; formula</div>
   <div class="tabs">
     <div class="tab paeds active" id="tab-paeds" onclick="setPatientType('paeds')">👶 Paediatric</div>
     <div class="tab adult" id="tab-adult" onclick="setPatientType('adult')">🧑 Adult</div>
@@ -595,7 +599,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- USE CASE SELECTOR -->
 <div class="card" id="uc-card">
-  <div class="ct"><span class="step-badge">3</span>What do you want to calculate?</div>
+  <div class="ct"><span class="step-badge" id="sb3">3</span>🎯 What do you want to calculate?</div>
   <div class="tabs">
     <div class="tab paeds active" id="uc-tab-1" onclick="setUseCase(1)">
       📋 Estimate current intake
@@ -704,7 +708,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- FLUIDS & IV CARD -->
 <div class="card" id="fluids-card">
-  <div class="ct"><span class="step-badge">4</span>Fluids &amp; flushes</div>
+  <div class="ct"><span class="step-badge" id="sb4">4</span>💧 Fluids &amp; flushes</div>
 
   <!-- Water flushes — tube-fed only, shown/hidden by route -->
   <div id="flush-section" class="subpanel" style="display:none">
@@ -790,6 +794,7 @@ select:focus,input:focus{border-color:var(--accent)}
 </div>
 
 <!-- CALCULATE -->
+<div id="calc-readiness" class="calc-readiness" style="display:none"></div>
 <button class="btn btn-primary" id="calc-btn" onclick="calculate()">Calculate intake</button>
 
 <!-- RESULTS -->
@@ -1612,6 +1617,7 @@ function setUseCase(uc) {
   document.getElementById('uc2-section').classList.toggle('section-hidden', uc!==2);
   document.getElementById('calc-btn').textContent = uc===1 ? 'Calculate intake' : 'Calculate Nutrition Support';
   document.getElementById('output-section').style.display='none';
+  if(typeof updateStepStatus==='function') updateStepStatus();
 }
 
 // ── UC2: live working calc as user types ──────────────────────────────────────
@@ -1885,6 +1891,7 @@ function setFeedType(type) {
     calcBtn.textContent = type==='btf' ? 'Calculate nutrition support' : (useCase===1?'Calculate intake':'Calculate Nutrition Support');
   }
   showFeedSection();
+  if(typeof updateStepStatus==='function') updateStepStatus();
 }
 
 function showFeedSection() {
@@ -3356,7 +3363,50 @@ function refreshAllCombos() {
   });
 }
 
+// ── Step progress cues: ✓ on completed steps + Calculate-button readiness ──────
+function _fieldVal(id) { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+function _setStepBadge(id, done, n) {
+  const el = document.getElementById(id); if(!el) return;
+  el.classList.toggle('done', done);
+  el.textContent = done ? '✓' : String(n);
+}
+function updateStepStatus() {
+  const s1 = !!_fieldVal('weight') && !!_fieldVal('ageGroup');
+  const s2 = ['ebm', 'ebmfort'].includes(feedType)
+    || !!_fieldVal('formulaSelect') || !!_fieldVal('mixedFormulaSelect') || !!_fieldVal('btfFormulaSelect');
+  let s3;
+  if(feedType === 'btf') s3 = !!_fieldVal('btf-vol') && !!_fieldVal('btf-freq');
+  else if(useCase === 2) s3 = !!_fieldVal('uc2-vol') || !!_fieldVal('uc2-freq');
+  else s3 = !!_fieldVal('volPerFeed') && !!_fieldVal('feedsPerDay');
+  const s4 = !!_fieldVal('flush-vol') || !!_fieldVal('extra-flush-vol') || !!_fieldVal('iv-type');
+  _setStepBadge('sb1', s1, 1);
+  _setStepBadge('sb2', s2, 2);
+  _setStepBadge('sb3', s3, 3);
+  _setStepBadge('sb4', s4, 4);
+
+  // Primary-action readiness cue
+  const need = [];
+  if(!s1) need.push('weight & age');
+  if(!s2) need.push('formula');
+  if(!s3) need.push('volume & frequency');
+  const hint = document.getElementById('calc-readiness');
+  const btn = document.getElementById('calc-btn');
+  if(hint && btn) {
+    if(need.length) {
+      hint.innerHTML = '⚠ Still needed: <strong>' + need.join(', ') + '</strong>';
+      hint.style.display = '';
+      btn.classList.remove('ready');
+    } else {
+      hint.style.display = 'none';
+      btn.classList.add('ready');
+    }
+  }
+}
+
 init();
+document.addEventListener('input', updateStepStatus);
+document.addEventListener('change', updateStepStatus);
+updateStepStatus();
 </script>
 </body>
 </html>
