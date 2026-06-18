@@ -65,10 +65,10 @@ details.card-collapsible[open]>summary::after{content:'▾'}
 .btf-grouptitle{display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:800;color:var(--text);margin:.9rem 0 0}
 /* ── Prep cheat sheet table ── */
 .prep-sheet .prep-ratio{font-size:.72rem;color:var(--muted);margin:.35rem 0 .15rem}
-.prep-table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.2rem}
-.prep-table th{text-align:left;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;padding:.25rem .45rem;border-bottom:1.5px solid var(--border)}
-.prep-table th:last-child,.prep-table td:last-child{text-align:right}
-.prep-table td{padding:.34rem .45rem;border-bottom:1px solid var(--border)}
+.prep-table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:.2rem}
+.prep-table th{text-align:left;font-size:.58rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:800;padding:.25rem .3rem;border-bottom:1.5px solid var(--border)}
+.prep-table th:nth-child(n+3),.prep-table td:nth-child(n+3){text-align:right}
+.prep-table td{padding:.32rem .3rem;border-bottom:1px solid var(--border)}
 .prep-table tbody tr:nth-child(odd){background:#f8fafc}
 .prep-table td:first-child{font-weight:800;color:var(--accent)}
 .prep-foot{font-size:.66rem;color:var(--muted);margin-top:.4rem;line-height:1.45}
@@ -230,7 +230,7 @@ select:focus,input:focus{border-color:var(--accent)}
 <body>
 <div class="app">
 <header>
-  <div class="logo">Paediatric Dietetics</div>
+  <div class="logo">Nutrition Support</div>
   <h1>Formula Feed <span>Calculator</span></h1>
   <p>Enteral nutrition · Feed planning · Notes output</p>
 </header>
@@ -269,7 +269,7 @@ select:focus,input:focus{border-color:var(--accent)}
 <!-- Gear button -->
 <button class="settings-gear" onclick="openSettings()" title="Settings">⚙</button>
 
-<div class="flow-hint">Work through the steps top to bottom, then tap <strong>Calculate</strong> at the bottom. Sections marked <span class="opt-tag">optional</span> can be left collapsed.</div>
+<div class="flow-hint">Work through the steps top to bottom, then tap <strong>Calculate</strong> at the bottom.</div>
 
 <!-- PATIENT INFO -->
 <div class="card">
@@ -698,8 +698,8 @@ select:focus,input:focus{border-color:var(--accent)}
 </div>
 
 <!-- FLUIDS & IV CARD -->
-<details class="card card-collapsible" id="fluids-card">
-  <summary class="ct">Fluids &amp; IV <span class="opt-tag">optional</span></summary>
+<div class="card" id="fluids-card">
+  <div class="ct"><span class="step-badge">4</span>Fluids &amp; flushes</div>
 
   <!-- Water flushes — tube-fed only, shown/hidden by route -->
   <div id="flush-section" style="display:none">
@@ -782,7 +782,7 @@ select:focus,input:focus{border-color:var(--accent)}
     <div id="fluid-summary-total" style="font-size:.88rem;font-weight:800;color:#0369a1"></div>
     <div id="fluid-summary-efr" style="font-size:.74rem;color:#075985;margin-top:.2rem"></div>
   </div>
-</details>
+</div>
 
 <!-- CALCULATE -->
 <button class="btn btn-primary" id="calc-btn" onclick="calculate()">Calculate intake</button>
@@ -1018,10 +1018,6 @@ function updateFluidsCard() {
   const tubeFed = isTubeFed();
   const flush = document.getElementById('flush-section');
   if(flush) flush.style.display = tubeFed ? '' : 'none';
-  // Auto-expand the (collapsed) Fluids & IV card when the user picks a tube
-  // route after load — but keep it collapsed on first paint to reduce clutter.
-  const fc = document.getElementById('fluids-card');
-  if(fc && tubeFed && window._appReady) fc.open = true;
   // Sync feeds/day from whichever input is active
   syncFlushFeeds();
   updateFlushPreview();
@@ -1966,8 +1962,9 @@ function buildPrepSheet(f) {
       const water = Math.round(n * f.sachetWater);
       const grams = Math.round(n * f.sachetG);
       const kcal = f.kcal ? Math.round(f.kcal * vol / 100) : '—';
+      const prot = f.protein ? (f.protein * vol / 100).toFixed(1) : '—';
       const lbl = n === Math.round(n) ? n : n.toFixed(1);
-      rows += `<tr><td>${vol} ml</td><td>${lbl} (${grams} g)</td><td>${water} ml</td><td>${kcal}</td></tr>`;
+      rows += `<tr><td>${vol} ml</td><td>${lbl} (${grams} g)</td><td>${water} ml</td><td>${kcal}</td><td>${prot} g</td></tr>`;
     });
   } else if(f.scoopG && f.stdDilution && f.stdWaterPerScoop) {
     headUnit = 'Scoops (powder)';
@@ -1980,7 +1977,8 @@ function buildPrepSheet(f) {
       const grams = Math.round(scoopsR * f.scoopG);
       const lbl = scoopsR === Math.round(scoopsR) ? scoopsR : scoopsR.toFixed(1);
       const kcal = f.kcal ? Math.round(f.kcal * vol / 100) : '—';
-      rows += `<tr><td>${vol} ml</td><td>${lbl} (${grams} g)</td><td>${water} ml</td><td>${kcal}</td></tr>`;
+      const prot = f.protein ? (f.protein * vol / 100).toFixed(1) : '—';
+      rows += `<tr><td>${vol} ml</td><td>${lbl} (${grams} g)</td><td>${water} ml</td><td>${kcal}</td><td>${prot} g</td></tr>`;
     });
   } else {
     return ''; // supplements / no standard-dilution data
@@ -1988,7 +1986,7 @@ function buildPrepSheet(f) {
   return `<details class="fi-details prep-sheet">
       <summary>📋 Prep cheat sheet — standard dilution</summary>
       <div class="prep-ratio">${ratio}</div>
-      <table class="prep-table"><thead><tr><th>Make</th><th>${headUnit}</th><th>Water</th><th>kcal</th></tr></thead><tbody>${rows}</tbody></table>
+      <table class="prep-table"><thead><tr><th>Make</th><th>${headUnit}</th><th>Water</th><th>kcal</th><th>Protein</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="prep-foot">Level scoops; add powder to the measured water. Scoops rounded to nearest ½ — always verify against the tin.</div>
     </details>`;
 }
@@ -3151,6 +3149,18 @@ function clearAll() {
 settingsData.favourites = settingsData.favourites || [];
 settingsData.recents = settingsData.recents || [];
 
+// Dismiss the on-screen keyboard when the user scrolls the page (mobile),
+// unless they're scrolling within an open formula dropdown list.
+function _dismissComboKeyboardOnScroll(e) {
+  const ae = document.activeElement;
+  if(ae && ae.classList && ae.classList.contains('combo-input')
+     && !(e.target && e.target.closest && e.target.closest('.combo-panel'))) {
+    ae.blur();
+  }
+}
+document.addEventListener('touchmove', _dismissComboKeyboardOnScroll, { passive: true });
+window.addEventListener('wheel', _dismissComboKeyboardOnScroll, { passive: true });
+
 function findFormulaByKey(key) {
   if(!key) return null;
   return FORMULAS.paediatric.formulas[key] || FORMULAS.adult.formulas[key] || null;
@@ -3279,6 +3289,7 @@ function setComboValue(selectId, value) {
   if(value) addRecent(value);
   state.close();
   syncCombo(selectId);
+  if(state.input) state.input.blur(); // dismiss the mobile keyboard after picking
   state.select.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
