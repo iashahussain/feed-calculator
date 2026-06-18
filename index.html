@@ -63,6 +63,9 @@ details.card-collapsible[open]>summary::after{content:'▾'}
 .btf-group{background:var(--light);border:1px solid var(--border);border-radius:10px;padding:.5rem .8rem .85rem;margin-top:.9rem}
 .btf-group>.sub-head:first-child,.btf-group>div:first-child>.sub-head{margin-top:.3rem}
 .btf-grouptitle{display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:800;color:var(--text);margin:.9rem 0 0}
+/* ── Sub-panel (visual grouping inside a card, e.g. flushes vs IV) ── */
+.subpanel{background:var(--light);border:1px solid var(--border);border-radius:10px;padding:.7rem .8rem;margin-top:.8rem}
+.subpanel>.sub-head:first-child{margin-top:.25rem}
 /* ── Prep cheat sheet table ── */
 .prep-sheet .prep-ratio{font-size:.72rem;color:var(--muted);margin:.35rem 0 .15rem}
 .prep-table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:.2rem}
@@ -220,11 +223,13 @@ select:focus,input:focus{border-color:var(--accent)}
 .bar-fill.warn{background:var(--warn)}
 .bar-fill.bad{background:var(--danger)}
 /* ── Collapsible formula nutrition ── */
-.fi-details{margin-top:.5rem;border-top:1px solid var(--border);padding-top:.35rem}
-.fi-details>summary{cursor:pointer;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);list-style:none;padding:.15rem 0;user-select:none}
+.fi-details{margin-top:.5rem}
+.fi-details>summary{display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--accent);background:#fff;border:1.5px solid var(--accent);border-radius:8px;padding:.5rem .7rem;list-style:none;user-select:none;transition:background .15s}
+.fi-details>summary:hover{background:#e8f5f1}
 .fi-details>summary::-webkit-details-marker{display:none}
-.fi-details>summary::before{content:'▸ '}
-.fi-details[open]>summary::before{content:'▾ '}
+.fi-details>summary::after{content:'▾';margin-left:auto;font-size:.85rem;transition:transform .2s}
+.fi-details[open]>summary::after{transform:rotate(180deg)}
+.fi-details[open]>summary{border-bottom-left-radius:0;border-bottom-right-radius:0;background:#e8f5f1}
 </style>
 </head>
 <body>
@@ -702,8 +707,8 @@ select:focus,input:focus{border-color:var(--accent)}
   <div class="ct"><span class="step-badge">4</span>Fluids &amp; flushes</div>
 
   <!-- Water flushes — tube-fed only, shown/hidden by route -->
-  <div id="flush-section" style="display:none">
-    <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.4rem">Feed Flushes (tube feeds only)</div>
+  <div id="flush-section" class="subpanel" style="display:none">
+    <div class="sub-head">💧 Feed flushes <span class="sub-note">(tube feeds only)</span></div>
     <div class="hint" style="margin-bottom:.5rem">Pre and post each feed. Flush volume is counted toward daily fluid intake.</div>
     <div class="g3">
       <div>
@@ -724,7 +729,7 @@ select:focus,input:focus{border-color:var(--accent)}
     <div id="flush-preview" class="section-hidden" style="margin-top:.4rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:.5rem .7rem;font-size:.77rem;color:#1e40af"></div>
 
     <!-- Extra flushes -->
-    <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-top:.8rem;margin-bottom:.4rem">Additional Flushes</div>
+    <div class="sub-head">Additional flushes</div>
     <div class="hint" style="margin-bottom:.5rem">e.g. medication flushes or hydration flushes between feeds.</div>
     <div class="g2">
       <div>
@@ -739,8 +744,8 @@ select:focus,input:focus{border-color:var(--accent)}
   </div>
 
   <!-- IV fluids — all patients -->
-  <div id="iv-section" style="margin-top:.7rem">
-    <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.4rem">IV Fluids</div>
+  <div id="iv-section" class="subpanel">
+    <div class="sub-head">💉 IV fluids</div>
     <div class="g3">
       <div>
         <label>IV fluid type</label>
