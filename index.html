@@ -72,6 +72,8 @@ details.card-collapsible[open]>summary::after{content:'▾'}
 /* ── Sub-panel (visual grouping inside a card, e.g. flushes vs IV) ── */
 .subpanel{background:var(--light);border:1px solid var(--border);border-radius:10px;padding:.7rem .8rem;margin-top:.8rem}
 .subpanel>.sub-head:first-child{margin-top:.25rem}
+.multi-line{margin-top:.7rem}
+.ml-remove{background:none;border:none;color:var(--danger);font-size:1.05rem;cursor:pointer;padding:.1rem .4rem;line-height:1;flex:none}
 /* ── Prep cheat sheet table ── */
 .prep-sheet .prep-ratio{font-size:.72rem;color:var(--muted);margin:.35rem 0 .15rem}
 .prep-table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:.2rem}
@@ -373,6 +375,7 @@ select:focus,input:focus{border-color:var(--accent)}
     <div class="feed-btn" id="ft-ebmfort" onclick="setFeedType('ebmfort')" id="ft-ebmfort">Fortified EBM</div>
     <div class="feed-btn" id="ft-mixed" onclick="setFeedType('mixed')">EBM + Formula</div>
     <div class="feed-btn" id="ft-btf" onclick="setFeedType('btf')">BTF + Formula</div>
+    <div class="feed-btn" id="ft-multi" onclick="setFeedType('multi')">Multi-formula</div>
   </div>
 
   <!-- FORMULA SECTION -->
@@ -628,6 +631,25 @@ select:focus,input:focus{border-color:var(--accent)}
     <div id="btf-preview" class="section-hidden" style="margin-top:.7rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.78rem">
       <div style="font-weight:700;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Daily totals preview</div>
       <div id="btf-preview-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
+    </div>
+  </div>
+
+  <!-- MULTI-FORMULA SECTION -->
+  <div id="section-multi" class="section-hidden">
+    <label>Route of administration</label>
+    <select id="multiRouteSelect" onchange="updateFluidsCard();updateFlushPreview()">
+      <option value="NGT">NGT (Nasogastric tube)</option>
+      <option value="OGT">OGT (Orogastric tube)</option>
+      <option value="PEG">PEG (Percutaneous endoscopic gastrostomy)</option>
+      <option value="Oral">Oral</option>
+      <option value="Oral + EN">Oral + EN</option>
+    </select>
+    <div class="hint" style="margin:.5rem 0 .2rem">Add each formula the patient receives, with its volume per feed and feeds per day. Totals are combined — works for estimating intake and for checking nutrition support against the target.</div>
+    <div id="multi-formula-lines"></div>
+    <button type="button" class="btn btn-secondary" style="margin-top:.6rem" onclick="addMultiLine()">＋ Add another formula</button>
+    <div id="multi-preview" class="section-hidden" style="margin-top:.7rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.78rem">
+      <div style="font-weight:700;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Combined daily totals</div>
+      <div id="multi-preview-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
     </div>
   </div>
 </div>
@@ -1071,7 +1093,9 @@ function updateFluidsCard() {
 
 function syncFlushFeeds() {
   let freq = 0;
-  if(feedType==='btf') {
+  if(feedType==='multi') {
+    freq = getMultiTotals().totalFeeds;
+  } else if(feedType==='btf') {
     const bf = parseFloat(document.getElementById('btf-freq')?.value)||0;
     const {fFreq} = getBTFFormulaVolFreq ? getBTFFormulaVolFreq() : {fFreq:0};
     freq = bf + fFreq;
@@ -1088,7 +1112,8 @@ function updateFlushPreview() {
   const perFeed   = parseFloat(document.getElementById('flush-per-feed')?.value) || 2;
   let freq = parseFloat(document.getElementById('flush-feeds')?.value) || 0;
   if(!freq) {
-    if(feedType==='btf') freq = parseFloat(document.getElementById('btf-freq')?.value)||0;
+    if(feedType==='multi') freq = getMultiTotals().totalFeeds;
+    else if(feedType==='btf') freq = parseFloat(document.getElementById('btf-freq')?.value)||0;
     else if(useCase===2) freq = parseFloat(document.getElementById('uc2-freq')?.value)||0;
     else freq = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
   }
@@ -1129,7 +1154,9 @@ function updateFluidSummary() {
 
   // Feed volume — always compute live from inputs
   let feedVol = 0;
-  if(feedType==='btf') {
+  if(feedType==='multi') {
+    feedVol = getMultiTotals().totalVol;
+  } else if(feedType==='btf') {
     const bVol  = parseFloat(document.getElementById('btf-vol')?.value)||0;
     const bFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
     const {fVol, fFreq} = getBTFFormulaVolFreq();
@@ -1202,7 +1229,8 @@ function getFluidData() {
   const flushPer   = parseFloat(document.getElementById('flush-per-feed')?.value) || 2;
   let flushFreq = parseFloat(document.getElementById('flush-feeds')?.value) || 0;
   if(!flushFreq) {
-    if(feedType==='btf') flushFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
+    if(feedType==='multi') flushFreq = getMultiTotals().totalFeeds;
+    else if(feedType==='btf') flushFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
     else if(useCase===2) flushFreq = parseFloat(document.getElementById('uc2-freq')?.value)||0;
     else flushFreq = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
   }
@@ -1897,6 +1925,8 @@ function populateFormulaSelects() {
   document.getElementById('formula-info-box').classList.add('section-hidden');
   document.getElementById('peptjnr-conc').classList.add('section-hidden');
   refreshAllCombos();
+  // Re-fill any multi-formula line pickers for the current patient group
+  document.querySelectorAll('#multi-formula-lines select').forEach(sel => { fillFormulaOptions(sel); syncCombo(sel.id); });
 }
 
 function setPatientType(type) {
@@ -1926,26 +1956,31 @@ function setPatientType(type) {
 
 function setFeedType(type) {
   feedType = type;
-  ['formula','ebm','ebmfort','mixed','btf'].forEach(t => {
+  ['formula','ebm','ebmfort','mixed','btf','multi'].forEach(t => {
     document.getElementById(`ft-${t}`)?.classList.toggle('active', t===type);
   });
-  // Hide UC selector for BTF — it has its own self-contained inputs
+  // Hide UC selector for self-contained feed types (BTF, multi-formula)
+  const selfContained = (type==='btf' || type==='multi');
   const ucCard = document.getElementById('uc-card');
   const calcBtn = document.getElementById('calc-btn');
-  if(ucCard) ucCard.style.display = type==='btf' ? 'none' : '';
+  if(ucCard) ucCard.style.display = selfContained ? 'none' : '';
   if(calcBtn) {
     calcBtn.style.display = '';
-    calcBtn.textContent = type==='btf' ? 'Calculate nutrition support' : (useCase===1?'Calculate intake':'Calculate Nutrition Support');
+    calcBtn.textContent = selfContained ? 'Calculate' : (useCase===1?'Calculate intake':'Calculate Nutrition Support');
+  }
+  // Seed two formula lines the first time Multi-formula is opened
+  if(type==='multi' && document.getElementById('multi-formula-lines') && !document.querySelector('#multi-formula-lines .multi-line')) {
+    addMultiLine(); addMultiLine();
   }
   showFeedSection();
   if(typeof updateStepStatus==='function') updateStepStatus();
 }
 
 function showFeedSection() {
-  ['section-formula','section-ebm','section-ebmfort','section-mixed','section-btf'].forEach(id => {
+  ['section-formula','section-ebm','section-ebmfort','section-mixed','section-btf','section-multi'].forEach(id => {
     document.getElementById(id).classList.add('section-hidden');
   });
-  const map = {formula:'section-formula',ebm:'section-ebm',ebmfort:'section-ebmfort',mixed:'section-mixed',btf:'section-btf'};
+  const map = {formula:'section-formula',ebm:'section-ebm',ebmfort:'section-ebmfort',mixed:'section-mixed',btf:'section-btf',multi:'section-multi'};
   document.getElementById(map[feedType]).classList.remove('section-hidden');
   document.getElementById('output-section').style.display='none';
 }
@@ -2474,6 +2509,24 @@ function _calculate() {
     document.getElementById('output-section').scrollIntoView({behavior:'smooth',block:'start'});
     return;
 
+  } else if(feedType === 'multi') {
+    const mRoute = document.getElementById('multiRouteSelect').value;
+    const t = getMultiTotals();
+    if(!t.items.length) { alert('Please add at least one formula with its volume per feed and feeds per day.'); return; }
+    const result = {
+      kcalDay: t.kcalDay, protDay: t.protDay, fatDay: t.fatDay, choDay: t.choDay,
+      naDay: t.naDay || null, kDay: t.kDay || null,
+      totalVol: t.totalVol, feedsPerDay: t.totalFeeds, volPerFeed: null,
+      multi: true, items: t.items,
+      kcalPer100: null, protPer100: null, fatPer100: null, choPer100: null
+    };
+    renderResults(result, targetKcal, targetProt, ageGroup, weight);
+    try { renderMultiNotes(result, targetKcal, targetProt, weight, ageGroup, mRoute); }
+    catch(e) { console.error('Multi notes error:', e); document.getElementById('output-text').textContent = 'Error generating notes: ' + e.message; }
+    document.getElementById('output-section').style.display='block';
+    document.getElementById('output-section').scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+
   } else if(useCase === 2) {
     route = document.getElementById('routeSelect2').value;
     volPerFeed = parseFloat(document.getElementById('uc2-vol').value);
@@ -2665,7 +2718,7 @@ function renderResults(r, targetKcal, targetProt, ageGroup, weight) {
   // Safety flags for paeds
   const flags = document.getElementById('safety-flags');
   flags.innerHTML = '';
-  if(patientType==='paeds' && ageGroup && !r.mixed) {
+  if(patientType==='paeds' && ageGroup && !r.mixed && !r.multi) {
     const limKey = ageGroup==='0-6m'||ageGroup==='preterm'?'0-6m':ageGroup==='6-12m'?'6-12m':ageGroup==='1-2y'?'1-2y':'older';
     const lim = SAFETY[limKey];
     if(lim && r.kcalPer100) {
@@ -3410,6 +3463,133 @@ function refreshAllCombos() {
   });
 }
 
+// ── Multi-formula (separate feeds) ────────────────────────────────────────────
+let _multiSeq = 0;
+function fillFormulaOptions(sel) {
+  if(!sel) return;
+  const group = patientType === 'paeds' ? 'paediatric' : 'adult';
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— select formula —</option>';
+  Object.entries(FORMULAS[group].formulas).forEach(([k,f]) => {
+    if(f.supplement) return; // complete feeds only
+    const o = document.createElement('option');
+    o.value = k; o.textContent = `${f.name} (${f.age})`;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value = cur;
+}
+function getMultiLines() {
+  return Array.from(document.querySelectorAll('#multi-formula-lines .multi-line')).map(line => {
+    const sel = line.querySelector('select');
+    return {
+      key: sel ? sel.value : '',
+      vol: parseFloat(line.querySelector('.ml-vol')?.value) || 0,
+      freq: parseFloat(line.querySelector('.ml-freq')?.value) || 0
+    };
+  });
+}
+function getMultiTotals() {
+  const t = { kcalDay:0, protDay:0, fatDay:0, choDay:0, naDay:0, kDay:0, totalVol:0, totalFeeds:0, items:[] };
+  getMultiLines().forEach(l => {
+    if(!l.key || !l.vol || !l.freq) return;
+    const f = findFormulaByKey(l.key); if(!f) return;
+    const v = l.vol * l.freq;
+    t.kcalDay += (f.kcal||0) * v/100;
+    t.protDay += (f.protein||0) * v/100;
+    t.fatDay  += (f.fat||0) * v/100;
+    t.choDay  += (f.cho||0) * v/100;
+    t.naDay   += (f.sodium||0) * v/100;
+    t.kDay    += (f.potassium||0) * v/100;
+    t.totalVol += v;
+    t.totalFeeds += l.freq;
+    t.items.push({ f, vol:l.vol, freq:l.freq, total:v });
+  });
+  t.kcalDay=Math.round(t.kcalDay*10)/10; t.protDay=Math.round(t.protDay*10)/10;
+  t.fatDay=Math.round(t.fatDay*10)/10; t.choDay=Math.round(t.choDay*10)/10;
+  t.naDay=Math.round(t.naDay); t.kDay=Math.round(t.kDay); t.totalVol=Math.round(t.totalVol);
+  return t;
+}
+function addMultiLine() {
+  const wrap = document.getElementById('multi-formula-lines');
+  if(!wrap) return;
+  const selId = 'multiFormula_' + (_multiSeq++);
+  const line = document.createElement('div');
+  line.className = 'multi-line subpanel';
+  line.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">'
+    +   '<div class="sub-head" style="margin:.1rem 0 .35rem">Formula</div>'
+    +   '<button type="button" class="ml-remove" title="Remove" onclick="removeMultiLine(this)">✕</button>'
+    +   '</div>'
+    +   '<select id="' + selId + '" onchange="updateMultiPreview()"></select>'
+    +   '<div class="g2" style="margin-top:.5rem">'
+    +     '<div><label>Volume per feed (ml)</label><input type="number" class="ml-vol" placeholder="e.g. 90" oninput="updateMultiPreview();updateFlushPreview();updateFluidSummary()"></div>'
+    +     '<div><label>Feeds per day</label><input type="number" class="ml-freq" placeholder="e.g. 3" oninput="updateMultiPreview();updateFlushPreview();updateFluidSummary()"></div>'
+    +   '</div>';
+  wrap.appendChild(line);
+  fillFormulaOptions(document.getElementById(selId));
+  enhanceCombo(selId);
+  renumberMultiLines();
+  updateMultiPreview();
+}
+function removeMultiLine(btn) {
+  const line = btn.closest('.multi-line');
+  const sel = line && line.querySelector('select');
+  if(sel) delete _combos[sel.id];
+  if(line) line.remove();
+  renumberMultiLines();
+  updateMultiPreview(); updateFlushPreview(); updateFluidSummary();
+  if(typeof updateStepStatus==='function') updateStepStatus();
+}
+function renumberMultiLines() {
+  document.querySelectorAll('#multi-formula-lines .multi-line .sub-head').forEach((h,i) => { h.textContent = 'Formula ' + (i+1); });
+}
+function updateMultiPreview() {
+  const box = document.getElementById('multi-preview');
+  if(!box) return;
+  const t = getMultiTotals();
+  if(!t.items.length) { box.classList.add('section-hidden'); if(typeof updateStepStatus==='function') updateStepStatus(); return; }
+  box.classList.remove('section-hidden');
+  const wt = parseFloat(document.getElementById('weight')?.value) || 0;
+  let txt = t.items.map(it => `${it.f.name}: ${it.vol}ml × ${it.freq} = ${it.total}ml`).join('\n');
+  txt += `\n────────\nTotal: ${t.totalVol}ml/day in ${t.totalFeeds} feeds`;
+  txt += `\nEnergy: ${t.kcalDay} kcal · Protein: ${t.protDay}g`;
+  if(wt) txt += `\nPer kg: ${(t.kcalDay/wt).toFixed(1)} kcal/kg · ${(t.protDay/wt).toFixed(2)} g/kg`;
+  document.getElementById('multi-preview-text').textContent = txt;
+  if(typeof updateStepStatus==='function') updateStepStatus();
+}
+function renderMultiNotes(r, targetKcal, targetProt, weight, ageGroup, route) {
+  let s = 'MULTI-FORMULA FEED PLAN\n';
+  s += 'Route: ' + route + '\n\n';
+  r.items.forEach(it => {
+    const perFeedKcal = it.f.kcal ? Math.round(it.f.kcal*it.vol/100) : null;
+    s += `• ${it.f.name}: ${it.vol}ml × ${it.freq}/day = ${it.total}ml`;
+    if(perFeedKcal != null) s += `  (${perFeedKcal} kcal/feed)`;
+    s += '\n';
+  });
+  s += '\nCOMBINED DAILY TOTALS\n';
+  s += `Volume:  ${r.totalVol}ml/day in ${r.feedsPerDay} feeds\n`;
+  s += `Energy:  ${r.kcalDay} kcal/day\n`;
+  s += `Protein: ${r.protDay}g/day\n`;
+  s += `Fat:     ${r.fatDay}g/day\n`;
+  s += `CHO:     ${r.choDay}g/day\n`;
+  if(r.naDay) s += `Sodium:  ${r.naDay}mg/day\n`;
+  if(weight) s += `\nPer kg:  ${(r.kcalDay/weight).toFixed(1)} kcal/kg/day · ${(r.protDay/weight).toFixed(2)} g protein/kg/day\n`;
+  if(targetKcal) s += `Energy:  ${Math.round(r.kcalDay/targetKcal*100)}% of ${targetKcal} kcal target\n`;
+  if(targetProt) s += `Protein: ${Math.round(r.protDay/targetProt*100)}% of ${targetProt}g target\n`;
+  const fd = getFluidData();
+  if(fd.flushTotal || fd.extraFlushTotal || fd.ivVolDay) {
+    s += '\nFLUIDS\n';
+    if(fd.flushTotal) s += `Feed flushes: ${Math.round(fd.flushTotal)}ml/day\n`;
+    if(fd.extraFlushTotal) s += `Additional flushes: ${Math.round(fd.extraFlushTotal)}ml/day\n`;
+    if(fd.ivVolDay) s += `IV (${fd.ivName||'fluid'}): ${Math.round(fd.ivVolDay)}ml/day` + (fd.ivKcalDay?` (${fd.ivKcalDay} kcal)`:'') + '\n';
+    const totalFluid = r.totalVol + (fd.flushTotal||0) + (fd.extraFlushTotal||0) + (fd.ivVolDay||0);
+    s += `Total fluid: ${Math.round(totalFluid)}ml/day`;
+    if(fd.fluidTarget) s += ` (${Math.round(totalFluid/fd.fluidTarget*100)}% of EFR ${fd.fluidTarget}ml)`;
+    s += '\n';
+  }
+  document.getElementById('output-text').textContent = s;
+}
+
 // ── Step progress cues: ✓ on completed steps + Calculate-button readiness ──────
 function _fieldVal(id) { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
 function _setStepBadge(id, done, n) {
@@ -3419,10 +3599,12 @@ function _setStepBadge(id, done, n) {
 }
 function updateStepStatus() {
   const s1 = !!_fieldVal('weight') && !!_fieldVal('ageGroup');
+  const multiReady = (typeof getMultiTotals==='function') && getMultiTotals().items.length > 0;
   const s2 = ['ebm', 'ebmfort'].includes(feedType)
-    || !!_fieldVal('formulaSelect') || !!_fieldVal('mixedFormulaSelect') || !!_fieldVal('btfFormulaSelect');
+    || (feedType==='multi' ? multiReady : (!!_fieldVal('formulaSelect') || !!_fieldVal('mixedFormulaSelect') || !!_fieldVal('btfFormulaSelect')));
   let s3;
-  if(feedType === 'btf') s3 = !!_fieldVal('btf-vol') && !!_fieldVal('btf-freq');
+  if(feedType === 'multi') s3 = multiReady;
+  else if(feedType === 'btf') s3 = !!_fieldVal('btf-vol') && !!_fieldVal('btf-freq');
   else if(useCase === 2) s3 = !!_fieldVal('uc2-vol') || !!_fieldVal('uc2-freq');
   else s3 = !!_fieldVal('volPerFeed') && !!_fieldVal('feedsPerDay');
   const s4 = !!_fieldVal('flush-vol') || !!_fieldVal('extra-flush-vol') || !!_fieldVal('iv-type');
