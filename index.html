@@ -869,6 +869,7 @@ select:focus,input:focus{border-color:var(--accent)}
   <div class="card">
     <div class="ct">Notes Output</div>
     <button class="copy-btn" id="copy-btn" onclick="copyOutput()">Copy</button>
+    <button class="copy-btn" id="send-dash-btn" onclick="sendToDashboard()" style="display:none;margin-left:6px;background:#1a8a4f">→ Send to dashboard</button>
     <div class="output-box" id="output-text"></div>
     <button class="btn btn-secondary" onclick="clearAll()">Clear all</button>
   </div>
@@ -1949,7 +1950,31 @@ function init() {
   setBTFDensity('std');
   updateFluidsCard();
   applyThemeIcon();
+  applyDashboardContext();
   window._appReady = true;
+}
+
+// When opened from the Rounds Dashboard (?wt=&type=&embed=1): prefill the patient and
+// reveal a "Send to dashboard" button that posts the regimen back via postMessage.
+function applyDashboardContext() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const type = q.get('type');
+    if (type === 'adult' || type === 'paeds') setPatientType(type);
+    const wt = q.get('wt');
+    if (wt && parseFloat(wt) > 0) { const w = document.getElementById('weight'); if (w) { w.value = wt; if (typeof updateEER === 'function') updateEER(); } }
+    const embedded = q.get('embed') === '1' || window.parent !== window || !!window.opener;
+    if (embedded) { const b = document.getElementById('send-dash-btn'); if (b) b.style.display = 'inline-block'; }
+  } catch (_) {}
+}
+function sendToDashboard() {
+  const text = (document.getElementById('output-text') || {}).textContent || '';
+  if (!text.trim()) { alert('Calculate a regimen first.'); return; }
+  const msg = { type: 'feedcalc-result', text: text };
+  if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*');
+  if (window.opener) window.opener.postMessage(msg, '*');
+  const b = document.getElementById('send-dash-btn');
+  if (b) { b.textContent = '✓ Sent'; setTimeout(() => { b.textContent = '→ Send to dashboard'; }, 2000); }
 }
 
 function populateFormulaSelects() {
