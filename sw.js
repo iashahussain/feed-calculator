@@ -1,7 +1,7 @@
 /* Service worker for the Formula Feed Calculator PWA.
    Bump CACHE_VERSION whenever index.html (or any asset below) changes,
    so returning users pick up the new version instead of the cached one. */
-const CACHE_VERSION = 'feedcalc-v20';
+const CACHE_VERSION = 'feedcalc-v21';
 const ASSETS = [
   './',
   './index.html',
@@ -30,6 +30,23 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  // Network-first for navigations (incl. the dashboard's iframe load) so a new
+  // deploy is picked up immediately when online; fall back to cache offline.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((c) => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Cache-first for everything else (icons, manifest, etc.).
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
