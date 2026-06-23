@@ -1,7 +1,7 @@
 /* Service worker for the Formula Feed Calculator PWA.
    Bump CACHE_VERSION whenever index.html (or any asset below) changes,
    so returning users pick up the new version instead of the cached one. */
-const CACHE_VERSION = 'feedcalc-v14';
+const CACHE_VERSION = 'feedcalc-v15';
 const ASSETS = [
   './',
   './index.html',
