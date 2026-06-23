@@ -1961,6 +1961,8 @@ function applyDashboardContext() {
     const q = new URLSearchParams(location.search);
     const type = q.get('type');
     if (type === 'adult' || type === 'paeds') setPatientType(type);
+    const uc = q.get('uc');
+    if (uc && typeof setUseCase === 'function') setUseCase(parseInt(uc, 10));
     const wt = q.get('wt');
     if (wt && parseFloat(wt) > 0) { const w = document.getElementById('weight'); if (w) { w.value = wt; if (typeof updateEER === 'function') updateEER(); } }
     const embedded = q.get('embed') === '1' || window.parent !== window || !!window.opener;
