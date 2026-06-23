@@ -743,19 +743,20 @@ select:focus,input:focus{border-color:var(--accent)}
       <option value="Oral">Oral</option>
       <option value="Oral + EN">Oral + EN</option>
     </select>
-    <div class="hint" style="margin-top:.4rem;margin-bottom:.5rem">Enter feeds/day OR volume/feed — the other will be calculated.</div>
+    <div class="hint" style="margin-top:.4rem;margin-bottom:.5rem">Enter any volume + feeds to see what it delivers vs target (e.g. a starting or step-up plan). Tap <strong>Fill to target</strong> to auto-fill the amount that meets the target.</div>
     <div class="g2">
       <div>
         <label>Volume per feed (ml)</label>
-        <input type="number" id="uc2-vol" placeholder="calculated" oninput="uc2SolveOther('vol');updateEBMFortInfo();updateFluidSummary()" style="background:#f8fafc">
+        <input type="number" id="uc2-vol" placeholder="e.g. 100" oninput="uc2Update();updateEBMFortInfo();updateFluidSummary()">
         <div class="hint" id="uc2-vol-hint"></div>
       </div>
       <div>
         <label>Feeds per day</label>
-        <input type="number" id="uc2-freq" placeholder="e.g. 8" min="1" step="1" oninput="this.value=Math.round(this.value)||'';uc2SolveOther('freq');updateEBMFortInfo();updateFluidSummary()">
+        <input type="number" id="uc2-freq" placeholder="e.g. 8" min="1" step="1" oninput="this.value=Math.round(this.value)||'';uc2Update();updateEBMFortInfo();updateFluidSummary()">
         <div class="hint" id="uc2-freq-hint"></div>
       </div>
     </div>
+    <button type="button" class="btn btn-secondary btn-small" style="width:auto;margin-top:.5rem" onclick="fillUc2ToTarget()">↳ Fill to target</button>
     <div id="uc2-working" class="section-hidden" style="margin-top:.7rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.8rem;font-size:.78rem">
       <div style="font-weight:700;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Working</div>
       <div id="uc2-working-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
@@ -1686,7 +1687,85 @@ function setUseCase(uc) {
 }
 
 // ── UC2: live working calc as user types ──────────────────────────────────────
-function uc2SolveOther(changed) {
+// Non-destructive Support helper: shows what the entered plan delivers vs target,
+// AND what's needed to reach target — without overwriting the user's entries.
+function uc2Update() {
+  const targetKcal = parseFloat(document.getElementById('targetKcal').value) || null;
+  const targetProt = parseFloat(document.getElementById('targetProt').value) || null;
+  let f = null, feedKcal = null, feedProt = null;
+  if(feedType === 'formula') {
+    f = getEffectiveFormula();
+    if(!f || !f.kcal) { document.getElementById('uc2-working').classList.add('section-hidden'); return; }
+    feedKcal = f.kcal; feedProt = f.protein;
+  } else if(feedType === 'ebm') { feedKcal = EBM_REF.kcal; feedProt = EBM_REF.protein; }
+  else if(feedType === 'ebmfort') { const fort = EBM_FORT[ebmFortLevel]; feedKcal = fort.kcal; feedProt = fort.protein; }
+  else { document.getElementById('uc2-working').classList.add('section-hidden'); return; }
+
+  const vol = parseFloat(document.getElementById('uc2-vol').value) || 0;
+  const freq = parseFloat(document.getElementById('uc2-freq').value) || 0;
+  document.getElementById('uc2-vol-hint').textContent = '';
+  document.getElementById('uc2-freq-hint').textContent = '';
+  const lines = [];
+
+  // What the entered plan delivers (works even when below target)
+  if(vol && freq) {
+    const total = vol * freq;
+    const kcal = Math.round(feedKcal * total / 100);
+    lines.push('THIS PLAN');
+    lines.push(`${vol}ml × ${freq} feeds = ${total}ml/day`);
+    let el = `Energy:  ${kcal} kcal/day`;
+    if(targetKcal) el += `  (${Math.round(kcal / targetKcal * 100)}% of target)`;
+    lines.push(el);
+    if(feedProt != null) {
+      const prot = Math.round(feedProt * total / 100 * 10) / 10;
+      let pl = `Protein: ${prot}g/day`;
+      if(targetProt) pl += `  (${Math.round(prot / targetProt * 100)}% of target)`;
+      lines.push(pl);
+    }
+    const sc = f ? getScoopInfo(f, vol) : null;
+    if(sc) lines.push(`Prep:    ${sc}`);
+  }
+
+  // What's needed to reach the energy target (suggestion only — not auto-filled)
+  if(targetKcal) {
+    const need = Math.round(targetKcal / feedKcal * 100);
+    if(lines.length) lines.push('');
+    lines.push(`TO REACH ${targetKcal} kcal TARGET`);
+    lines.push(`Need ${need}ml/day total`);
+    if(freq) lines.push(`= ${Math.round(need / freq)}ml/feed at ${freq} feeds`);
+    else if(vol) lines.push(`= ${Math.round(need / vol)} feeds at ${vol}ml`);
+    else lines.push('Enter feeds or volume, or tap “Fill to target”.');
+  }
+
+  const box = document.getElementById('uc2-working');
+  if(!lines.length) { box.classList.add('section-hidden'); return; }
+  document.getElementById('uc2-working-text').textContent = lines.join('\n');
+  box.classList.remove('section-hidden');
+}
+
+// One-tap solve: fill the missing field (or both) with the amount needed to hit target.
+function fillUc2ToTarget() {
+  const tk = parseFloat(document.getElementById('targetKcal').value);
+  if(!tk) { alert('Enter a target energy (kcal/day) in Step 1 first.'); return; }
+  let fk = null;
+  if(feedType === 'formula') { const f = getEffectiveFormula(); if(!f || !f.kcal) { alert('Select a formula first.'); return; } fk = f.kcal; }
+  else if(feedType === 'ebm') fk = EBM_REF.kcal;
+  else if(feedType === 'ebmfort') fk = EBM_FORT[ebmFortLevel].kcal;
+  else return;
+  const need = Math.round(tk / fk * 100);
+  const vol = parseFloat(document.getElementById('uc2-vol').value) || 0;
+  const freq = parseFloat(document.getElementById('uc2-freq').value) || 0;
+  if(freq) document.getElementById('uc2-vol').value = Math.round(need / freq);
+  else if(vol) document.getElementById('uc2-freq').value = Math.round(need / vol);
+  else { document.getElementById('uc2-freq').value = 6; document.getElementById('uc2-vol').value = Math.round(need / 6); }
+  uc2Update(); updateEBMFortInfo(); updateFlushPreview(); updateFluidSummary();
+  if(typeof updateStepStatus === 'function') updateStepStatus();
+}
+
+// Legacy entry point (kept so existing handlers work) → now non-destructive.
+function uc2SolveOther(changed) { uc2Update(); }
+
+function _uc2SolveOther_legacy(changed) {
   const targetKcal = parseFloat(document.getElementById('targetKcal').value);
 
   // Get effective kcal density depending on feed type
