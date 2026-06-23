@@ -1965,6 +1965,13 @@ function applyDashboardContext() {
     if (uc && typeof setUseCase === 'function') setUseCase(parseInt(uc, 10));
     const wt = q.get('wt');
     if (wt && parseFloat(wt) > 0) { const w = document.getElementById('weight'); if (w) { w.value = wt; if (typeof updateEER === 'function') updateEER(); } }
+    // Targets from the dashboard's requirements (NourishCal) so "% of EER" / protein % are
+    // computed against HER numbers, not the calc's own estimate.
+    const eer = q.get('eer');
+    if (eer && parseFloat(eer) > 0) { const t = document.getElementById('targetKcal'); if (t) t.value = Math.round(parseFloat(eer)); }
+    const epr = q.get('epr');
+    if (epr && parseFloat(epr) > 0) { const tp = document.getElementById('targetProt'); if (tp) tp.value = parseFloat(epr); }
+    if ((eer || epr) && typeof updateOutputPreview === 'function') { try { updateOutputPreview(); } catch (_) {} }
     const embedded = q.get('embed') === '1' || window.parent !== window || !!window.opener;
     if (embedded) { const b = document.getElementById('send-dash-btn'); if (b) b.style.display = 'inline-block'; }
   } catch (_) {}
