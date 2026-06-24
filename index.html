@@ -315,7 +315,26 @@ select:focus,input:focus{border-color:var(--accent)}
 <!-- Dark mode toggle -->
 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
 
-<div class="flow-hint">Work through the steps top to bottom, then tap <strong>Calculate</strong> at the bottom.</div>
+<div class="card" id="intro-card">
+  <p style="margin:0 0 .6rem;font-size:.86rem;line-height:1.5">Plan enteral &amp; oral feeds and check them against energy, protein &amp; fluid targets — paediatric &amp; adult. Work through the steps below, then tap <strong>Calculate</strong> for a breakdown and a copy-ready note.</p>
+  <button class="btn btn-secondary btn-small" style="width:auto;margin:0" onclick="loadExample()">▶ Load an example</button>
+  <details class="fi-details" style="margin-top:.6rem">
+    <summary>How it works</summary>
+    <div style="font-size:.8rem;line-height:1.6;color:var(--muted);padding:.35rem 0 0">
+      <strong>1.</strong> Enter the patient — weight &amp; age (Step 1), and their daily targets if you have them.<br>
+      <strong>2.</strong> Choose the feed &amp; formula (Step 2). In Step 3 pick <strong>Estimate current intake</strong> (what they're getting now) or <strong>Calculate Nutrition Support</strong> (plan to a target).<br>
+      <strong>3.</strong> Add fluids/flushes (Step 4) if tube-fed, then <strong>Calculate</strong>.
+    </div>
+  </details>
+  <details class="fi-details" style="margin-top:.45rem">
+    <summary>What the abbreviations mean</summary>
+    <div style="font-size:.78rem;line-height:1.75;color:var(--muted);padding:.35rem 0 0">
+      <strong>EER</strong> estimated energy requirement · <strong>EPR</strong> estimated protein requirement · <strong>EFR</strong> estimated fluid requirement<br>
+      <strong>EBM</strong> expressed breast milk · <strong>BTF</strong> blended tube feed · <strong>RCH</strong> Royal Children's Hospital (dilution method)<br>
+      <strong>NGT / OGT</strong> naso/orogastric tube · <strong>PEG</strong> gastrostomy tube · <strong>EN</strong> enteral nutrition · <strong>TPN</strong> total parenteral (IV) nutrition
+    </div>
+  </details>
+</div>
 
 <!-- PATIENT INFO -->
 <div class="card">
@@ -349,6 +368,7 @@ select:focus,input:focus{border-color:var(--accent)}
       <input type="number" id="targetProt" placeholder="e.g. 12" step="0.1" oninput="updateOutputPreview()">
     </div>
   </div>
+  <div class="hint" style="margin-top:.35rem"><i>Optional — enter targets to see the result as % of target (the adequacy bars).</i></div>
   <div id="eer-display" class="eer-row section-hidden"></div>
   <div id="efr-display" class="eer-row section-hidden" style="margin-top:.4rem;background:#e0f2fe;border-color:#7dd3fc;color:#075985"></div>
   <div class="g2" style="margin-top:.5rem">
@@ -1957,6 +1977,29 @@ function toggleTheme() {
   document.documentElement.dataset.theme = isDark ? '' : 'dark';
   try { localStorage.setItem('feedcalc_theme', isDark ? 'light' : 'dark'); } catch(e) {}
   applyThemeIcon();
+}
+
+function loadExample() {
+  setPatientType('paeds');
+  setFeedType('formula');
+  setUseCase(1);
+  document.getElementById('weight').value = '14';
+  document.getElementById('ageGroup').value = '2-6y';
+  document.getElementById('targetKcal').value = '1000';
+  document.getElementById('targetProt').value = '25';
+  if(typeof updateEER === 'function') updateEER();
+  if(typeof updateEFR === 'function') updateEFR();
+  setComboValue('formulaSelect', 'pediasure');
+  document.getElementById('routeSelect').value = 'NGT';
+  setInputMethod('vol');
+  document.getElementById('volPerFeed').value = '200';
+  document.getElementById('feedsPerDay').value = '5';
+  updateFluidsCard();
+  if(typeof updateOutputPreview === 'function') updateOutputPreview();
+  if(typeof updateVolPreview === 'function') updateVolPreview();
+  updateFluidSummary();
+  if(typeof updateStepStatus === 'function') updateStepStatus();
+  calculate();
 }
 
 function init() {
