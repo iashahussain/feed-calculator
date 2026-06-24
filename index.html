@@ -600,6 +600,14 @@ select:focus,input:focus{border-color:var(--accent)}
     </div>
     </div><!-- /formula group -->
 
+    <!-- Additional formulas (optional) -->
+    <div class="btf-group">
+      <div class="btf-grouptitle">Additional formulas</div>
+      <div class="hint" style="margin:.2rem 0 .1rem">For a patient on more than one formula alongside the blend — each is added to the combined totals.</div>
+      <div id="btf-extra-lines"></div>
+      <button type="button" class="btn btn-secondary" style="margin-top:.5rem" onclick="addBtfLine()">＋ Add a formula</button>
+    </div>
+
     <!-- Schedule (UC2 only) -->
     <div id="btf-schedule-section" class="section-hidden" style="margin-top:.8rem">
       <div class="sub-head">Feeding Schedule</div>
@@ -1102,7 +1110,7 @@ function syncFlushFeeds() {
   } else if(feedType==='btf') {
     const bf = parseFloat(document.getElementById('btf-freq')?.value)||0;
     const {fFreq} = getBTFFormulaVolFreq ? getBTFFormulaVolFreq() : {fFreq:0};
-    freq = bf + fFreq;
+    freq = bf + fFreq + getBtfExtraTotals().totalFeeds;
   } else if(useCase===2) freq = parseFloat(document.getElementById('uc2-freq')?.value)||0;
   else freq = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
   const ff = document.getElementById('flush-feeds');
@@ -1164,7 +1172,7 @@ function updateFluidSummary() {
     const bVol  = parseFloat(document.getElementById('btf-vol')?.value)||0;
     const bFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
     const {fVol, fFreq} = getBTFFormulaVolFreq();
-    feedVol = (bVol*bFreq) + (fVol*fFreq);
+    feedVol = (bVol*bFreq) + (fVol*fFreq) + getBtfExtraTotals().totalVol;
   } else if(useCase===2) {
     const v = parseFloat(document.getElementById('uc2-vol')?.value)||0;
     const f = parseFloat(document.getElementById('uc2-freq')?.value)||0;
@@ -1522,14 +1530,15 @@ function updateBTFPreview() {
     fProtDay = Math.round(btfFormula.protein * fTotal / 100 * 10)/10;
   }
 
-  const totalKcal = Math.round((btfKcalDay+fKcalDay)*10)/10;
-  const totalProt = btfProtDay!==null ? Math.round((btfProtDay+(fProtDay||0))*10)/10 : null;
-  const totalVol  = btfTotal + fTotal;
+  const ex = getBtfExtraTotals();
+  const totalKcal = Math.round((btfKcalDay+fKcalDay+ex.kcalDay)*10)/10;
+  const totalProt = (btfProtDay!==null || ex.protDay) ? Math.round(((btfProtDay||0)+(fProtDay||0)+ex.protDay)*10)/10 : null;
+  const totalVol  = btfTotal + fTotal + ex.totalVol;
 
   // Flush
   const flushVol  = parseFloat(document.getElementById('flush-vol')?.value)||0;
   const flushPer  = parseFloat(document.getElementById('flush-per-feed')?.value)||2;
-  const flushFreq = btfFreq + (fFreq||0);
+  const flushFreq = btfFreq + (fFreq||0) + ex.totalFeeds;
   const flushTotal= flushVol * flushPer * flushFreq;
   const extraFlushVol2  = parseFloat(document.getElementById('extra-flush-vol')?.value)||0;
   const extraFlushFreq2 = parseFloat(document.getElementById('extra-flush-freq')?.value)||0;
@@ -1545,6 +1554,12 @@ function updateBTFPreview() {
   if(btfFormula && fVol && fFreq) {
     text += `Formula: ${fVol}ml × ${fFreq} feeds = ${fTotal}ml → ${fKcalDay} kcal, ${fProtDay}g protein
 `;
+  }
+  ex.items.forEach(it => {
+    text += `Formula: ${it.f.name} — ${it.vol}ml × ${it.freq} feeds = ${it.total}ml → ${Math.round(it.f.kcal*it.total/100)} kcal, ${Math.round(it.f.protein*it.total/100*10)/10}g protein
+`;
+  });
+  if((btfFormula && fVol && fFreq) || ex.items.length) {
     if(flushTotal) text += `Flush:   ${flushVol}ml pre & ${flushVol}ml post × ${flushFreq} feeds = ${flushTotal}ml
 `;
     text += `────────────────────────────────────────
@@ -2041,7 +2056,7 @@ function populateFormulaSelects() {
   document.getElementById('peptjnr-conc').classList.add('section-hidden');
   refreshAllCombos();
   // Re-fill any multi-formula line pickers for the current patient group
-  document.querySelectorAll('#multi-formula-lines select').forEach(sel => { fillFormulaOptions(sel); syncCombo(sel.id); });
+  document.querySelectorAll('#multi-formula-lines select, #btf-extra-lines select').forEach(sel => { fillFormulaOptions(sel); syncCombo(sel.id); });
 }
 
 function setPatientType(type) {
@@ -2603,14 +2618,16 @@ function _calculate() {
       fNaDay   = Math.round(btfFormula.sodium * fTotal / 100);
       fKDay    = Math.round(btfFormula.potassium * fTotal / 100);
     }
+    const ex = getBtfExtraTotals();
     const result = {
-      kcalDay: Math.round((btfKcalDay+fKcalDay)*10)/10,
-      protDay: Math.round((btfProtDay+fProtDay)*10)/10,
-      fatDay: fFatDay, choDay: fChoDay,
-      naDay: fNaDay||null, kDay: fKDay||null,
-      totalVol: btfTotal+fTotal, volPerFeed: btfVol, feedsPerDay: btfFreq,
+      kcalDay: Math.round((btfKcalDay+fKcalDay+ex.kcalDay)*10)/10,
+      protDay: Math.round((btfProtDay+fProtDay+ex.protDay)*10)/10,
+      fatDay: Math.round((fFatDay+ex.fatDay)*10)/10, choDay: Math.round((fChoDay+ex.choDay)*10)/10,
+      naDay: (fNaDay+ex.naDay)||null, kDay: (fKDay+ex.kDay)||null,
+      totalVol: btfTotal+fTotal+ex.totalVol, volPerFeed: btfVol, feedsPerDay: btfFreq+(fFreq||0)+ex.totalFeeds,
       btfBased:true, btfKcalDay, btfProtDay, btfTotal, btfVol, btfFreq, btfKcal, btfProt,
       fKcalDay, fProtDay, fTotal, fVol: fVol||0, fFreq: fFreq||0,
+      extraItems: ex.items,
       kcalPer100:null, protPer100:null, fatPer100:null, choPer100:null
     };
     renderResults(result, targetKcal, targetProt, ageGroup, weight);
@@ -2813,7 +2830,8 @@ function renderResults(r, targetKcal, targetProt, ageGroup, weight) {
     <div class="res-box"><div class="rv">${r.totalVol}ml</div><div class="rl">total volume/day</div></div>
     <div class="res-box"><div class="rv">${r.fatDay}g</div><div class="rl">fat/day</div></div>
     <div class="res-box"><div class="rv">${r.choDay}g</div><div class="rl">CHO/day</div></div>
-    <div class="res-box"><div class="rv">${r.naDay ?? '—'}</div><div class="rl">sodium mg/day</div></div>`;
+    <div class="res-box"><div class="rv">${r.naDay ?? '—'}</div><div class="rl">sodium mg/day</div></div>
+    ${r.kDay != null ? `<div class="res-box"><div class="rv">${r.kDay}</div><div class="rl">potassium mg/day</div></div>` : ''}`;
 
   // Per-kg strip + adequacy bars
   const pctDiv = document.getElementById('pct-eer');
@@ -3209,7 +3227,9 @@ function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
   const lines = [];
   const fd = getFluidData();
   const {fVol, fFreq, scoopBased, scoops} = getBTFFormulaVolFreq();
-  const totalFeeds = r.btfFreq + (fFreq||0);
+  const exItems = r.extraItems || [];
+  const exFeeds = exItems.reduce((s,it) => s + it.freq, 0);
+  const totalFeeds = r.btfFreq + (fFreq||0) + exFeeds;
   const flushVol   = fd.flushVol;
   const flushPer   = fd.flushPer;
   const flushTotal = flushVol * flushPer * totalFeeds;
@@ -3231,6 +3251,9 @@ function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
         lines.push(`Formula: ${fVol}ml × ${fFreq} feeds = ${fVol*fFreq}ml → ${r.fKcalDay} kcal, ${r.fProtDay}g protein`);
       }
     }
+    exItems.forEach(it => {
+      lines.push(`Formula: ${it.f.name} — ${it.vol}ml × ${it.freq} feeds = ${it.total}ml → ${Math.round(it.f.kcal*it.total/100)} kcal, ${Math.round(it.f.protein*it.total/100*10)/10}g protein`);
+    });
     if(flushTotal) lines.push(`Flush:   ${flushVol}ml pre & ${flushVol}ml post feeds × ${totalFeeds} feeds = ${flushTotal}ml`);
     if(fd.extraFlushTotal) lines.push(`Extra flushes: ${fd.extraFlushTotal}ml/day`);
     lines.push('');
@@ -3255,6 +3278,7 @@ function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
     lines.push('');
 
     if(btfFormula) lines.push(`Formula: ${btfFormula.name} (${btfFormula.kcal} kcal/100ml | ${btfFormula.protein}g protein/100ml)`);
+    exItems.forEach(it => lines.push(`Formula: ${it.f.name} — ${it.vol}ml × ${it.freq}/day = ${it.total}ml → ${Math.round(it.f.kcal*it.total/100)} kcal, ${Math.round(it.f.protein*it.total/100*10)/10}g protein`));
     lines.push(`Blended Tube Feeds (${r.btfKcal} kcal/100ml | ${r.btfProt||'?'}g protein/100ml)`);
     lines.push('');
 
@@ -3658,6 +3682,62 @@ function removeMultiLine(btn) {
 function renumberMultiLines() {
   document.querySelectorAll('#multi-formula-lines .multi-line .sub-head').forEach((h,i) => { h.textContent = 'Formula ' + (i+1); });
 }
+
+// ── BTF: additional formulas (summed into the blended-feed totals) ─────────────
+let _btfSeq = 0;
+function addBtfLine() {
+  const wrap = document.getElementById('btf-extra-lines'); if(!wrap) return;
+  const selId = 'btfXf_' + (_btfSeq++);
+  const line = document.createElement('div');
+  line.className = 'multi-line subpanel';
+  line.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">'
+    +   '<div class="sub-head" style="margin:.1rem 0 .35rem">Formula</div>'
+    +   '<button type="button" class="ml-remove" title="Remove" onclick="removeBtfLine(this)">✕</button>'
+    +   '</div>'
+    +   '<select id="' + selId + '" onchange="updateBTFPreview()"></select>'
+    +   '<div class="g2" style="margin-top:.5rem">'
+    +     '<div><label>Volume per feed (ml)</label><input type="number" class="ml-vol" placeholder="e.g. 100" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary()"></div>'
+    +     '<div><label>Feeds per day</label><input type="number" class="ml-freq" placeholder="e.g. 3" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary()"></div>'
+    +   '</div>';
+  wrap.appendChild(line);
+  fillFormulaOptions(document.getElementById(selId));
+  enhanceCombo(selId);
+  renumberBtfLines();
+  updateBTFPreview();
+}
+function removeBtfLine(btn) {
+  const line = btn.closest('.multi-line');
+  const sel = line && line.querySelector('select');
+  if(sel) delete _combos[sel.id];
+  if(line) line.remove();
+  renumberBtfLines();
+  updateBTFPreview(); updateFlushPreview(); updateFluidSummary();
+}
+function renumberBtfLines() {
+  document.querySelectorAll('#btf-extra-lines .multi-line .sub-head').forEach((h,i) => { h.textContent = 'Formula ' + (i+1); });
+}
+function getBtfExtraTotals() {
+  const t = { kcalDay:0, protDay:0, fatDay:0, choDay:0, naDay:0, kDay:0, totalVol:0, totalFeeds:0, items:[] };
+  document.querySelectorAll('#btf-extra-lines .multi-line').forEach(line => {
+    const sel = line.querySelector('select');
+    const key = sel ? sel.value : '';
+    const vol = parseFloat(line.querySelector('.ml-vol')?.value) || 0;
+    const freq = parseFloat(line.querySelector('.ml-freq')?.value) || 0;
+    if(!key || !vol || !freq) return;
+    const f = findFormulaByKey(key); if(!f) return;
+    const v = vol * freq;
+    t.kcalDay += (f.kcal||0)*v/100; t.protDay += (f.protein||0)*v/100;
+    t.fatDay += (f.fat||0)*v/100; t.choDay += (f.cho||0)*v/100;
+    t.naDay += (f.sodium||0)*v/100; t.kDay += (f.potassium||0)*v/100;
+    t.totalVol += v; t.totalFeeds += freq;
+    t.items.push({ f, vol, freq, total:v });
+  });
+  t.kcalDay=Math.round(t.kcalDay*10)/10; t.protDay=Math.round(t.protDay*10)/10;
+  t.fatDay=Math.round(t.fatDay*10)/10; t.choDay=Math.round(t.choDay*10)/10;
+  t.naDay=Math.round(t.naDay); t.kDay=Math.round(t.kDay); t.totalVol=Math.round(t.totalVol);
+  return t;
+}
 function updateMultiPreview() {
   const box = document.getElementById('multi-preview');
   if(!box) return;
@@ -3668,6 +3748,7 @@ function updateMultiPreview() {
   let txt = t.items.map(it => `${it.f.name}: ${it.vol}ml × ${it.freq} = ${it.total}ml`).join('\n');
   txt += `\n────────\nTotal: ${t.totalVol}ml/day in ${t.totalFeeds} feeds`;
   txt += `\nEnergy: ${t.kcalDay} kcal · Protein: ${t.protDay}g`;
+  txt += `\nSodium: ${t.naDay}mg · Potassium: ${t.kDay}mg`;
   if(wt) txt += `\nPer kg: ${(t.kcalDay/wt).toFixed(1)} kcal/kg · ${(t.protDay/wt).toFixed(2)} g/kg`;
   document.getElementById('multi-preview-text').textContent = txt;
   if(typeof updateStepStatus==='function') updateStepStatus();
@@ -3688,6 +3769,7 @@ function renderMultiNotes(r, targetKcal, targetProt, weight, ageGroup, route) {
   s += `Fat:     ${r.fatDay}g/day\n`;
   s += `CHO:     ${r.choDay}g/day\n`;
   if(r.naDay) s += `Sodium:  ${r.naDay}mg/day\n`;
+  if(r.kDay) s += `Potassium: ${r.kDay}mg/day\n`;
   if(weight) s += `\nPer kg:  ${(r.kcalDay/weight).toFixed(1)} kcal/kg/day · ${(r.protDay/weight).toFixed(2)} g protein/kg/day\n`;
   if(targetKcal) s += `Energy:  ${Math.round(r.kcalDay/targetKcal*100)}% of ${targetKcal} kcal target\n`;
   if(targetProt) s += `Protein: ${Math.round(r.protDay/targetProt*100)}% of ${targetProt}g target\n`;
