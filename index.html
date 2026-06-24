@@ -54,6 +54,8 @@ header p{font-size:.82rem;color:var(--muted);margin-top:.3rem}
 .step-badge{display:inline-flex;align-items:center;justify-content:center;width:1.45rem;height:1.45rem;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;font-weight:800;flex:none;transition:background .2s}
 .step-badge.done{background:var(--success)}
 .calc-readiness{font-size:.78rem;color:#92400e;background:#fff8e8;border:1px solid #fcd34d;border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;text-align:center}
+.note-mode-btn{font-size:.74rem;font-weight:700;padding:.3rem .85rem;border:1.5px solid var(--border);border-radius:7px;background:var(--card);color:var(--muted);cursor:pointer}
+.note-mode-btn.active{border-color:var(--accent);background:var(--light);color:var(--accent)}
 .btn-primary.ready{animation:readypulse 1.7s ease-in-out infinite}
 @keyframes readypulse{0%,100%{box-shadow:0 6px 18px rgba(26,107,92,.3)}50%{box-shadow:0 0 0 4px rgba(22,163,74,.4),0 6px 18px rgba(26,107,92,.3)}}
 .opt-tag{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:20px;padding:.12rem .5rem}
@@ -879,6 +881,31 @@ select:focus,input:focus{border-color:var(--accent)}
   </div>
 </div>
 
+<!-- FEED SCHEDULE (for the note) -->
+<div class="card" id="sched-card">
+  <div class="ct" style="font-size:.9rem"><span class="step-badge" style="background:var(--muted)">⏱</span>Feed schedule <span style="font-weight:400;color:var(--muted);font-size:.72rem">— for the note</span></div>
+  <div class="g2">
+    <div>
+      <label>Feed interval</label>
+      <select id="feed-interval" onchange="refreshConcise()">
+        <option value="120">Q2H (2-hourly)</option>
+        <option value="180" selected>Q3H (3-hourly)</option>
+        <option value="240">Q4H (4-hourly)</option>
+        <option value="360">Q6H (6-hourly)</option>
+        <option value="480">Q8H (8-hourly)</option>
+      </select>
+    </div>
+    <div>
+      <label>Feed times in note</label>
+      <label class="ph-check-label" style="margin-top:.35rem;width:fit-content"><input type="checkbox" id="timing-toggle" onchange="onTimingToggle()"> Add times</label>
+    </div>
+  </div>
+  <div id="timing-start-wrap" class="section-hidden" style="margin-top:.5rem">
+    <label>First feed time</label>
+    <input type="time" id="timing-start" value="06:00" onchange="refreshConcise()">
+  </div>
+</div>
+
 <!-- CALCULATE -->
 <div id="calc-readiness" class="calc-readiness" style="display:none"></div>
 <button class="btn btn-primary" id="calc-btn" onclick="calculate()">Calculate intake</button>
@@ -898,6 +925,10 @@ select:focus,input:focus{border-color:var(--accent)}
     <div class="ct">Notes Output</div>
     <button class="copy-btn" id="copy-btn" onclick="copyOutput()">Copy</button>
     <button class="copy-btn" id="send-dash-btn" onclick="sendToDashboard()" style="display:none;margin-left:6px;background:#1a8a4f">→ Send to dashboard</button>
+    <div style="clear:both;display:flex;gap:.4rem;margin-bottom:.5rem;padding-top:.2rem">
+      <button type="button" class="note-mode-btn active" id="note-concise-btn" onclick="setNoteMode('concise')">Concise</button>
+      <button type="button" class="note-mode-btn" id="note-detailed-btn" onclick="setNoteMode('detailed')">Detailed</button>
+    </div>
     <div class="output-box" id="output-text"></div>
     <button class="btn btn-secondary" onclick="clearAll()">Clear all</button>
   </div>
@@ -1262,7 +1293,7 @@ function getFluidData() {
   let flushFreq = parseFloat(document.getElementById('flush-feeds')?.value) || 0;
   if(!flushFreq) {
     if(feedType==='multi') flushFreq = getMultiTotals().totalFeeds;
-    else if(feedType==='btf') flushFreq = parseFloat(document.getElementById('btf-freq')?.value)||0;
+    else if(feedType==='btf') flushFreq = (parseFloat(document.getElementById('btf-freq')?.value)||0) + ((getBTFFormulaVolFreq().fFreq)||0) + getBtfExtraTotals().totalFeeds;
     else if(useCase===2) flushFreq = parseFloat(document.getElementById('uc2-freq')?.value)||0;
     else flushFreq = parseFloat(document.getElementById('feedsPerDay')?.value)||0;
   }
@@ -3054,6 +3085,131 @@ function buildPrepInstructions(f, vol, freq, route, concLevel, fortLevel, fortF)
 // Global storage for vol used in mixed prep
 let r_global_vol = 0;
 
+// ── Concise note (default view) + Concise/Detailed toggle ─────────────────────
+let _noteMode = 'concise', _noteDetailed = '', _noteConcise = '', _lastR = null, _lastCtx = null;
+function setNoteMode(m) { _noteMode = m; renderNoteView(); }
+function onTimingToggle() {
+  document.getElementById('timing-start-wrap').classList.toggle('section-hidden', !document.getElementById('timing-toggle').checked);
+  refreshConcise();
+}
+function refreshConcise() {
+  if(!_lastR) return;
+  try { _noteConcise = buildConciseNote(_lastR, _lastCtx); } catch(e) { console.error('Concise note error:', e); }
+  renderNoteView();
+}
+function renderNoteView() {
+  const el = document.getElementById('output-text'); if(!el) return;
+  el.textContent = _noteMode === 'detailed' ? _noteDetailed : _noteConcise;
+  document.getElementById('note-concise-btn')?.classList.toggle('active', _noteMode === 'concise');
+  document.getElementById('note-detailed-btn')?.classList.toggle('active', _noteMode === 'detailed');
+}
+function setNotes(detailed, r, ctx) {
+  _noteDetailed = detailed; _lastR = r; _lastCtx = ctx;
+  try { _noteConcise = buildConciseNote(r, ctx); } catch(e) { console.error('Concise note error:', e); _noteConcise = detailed; }
+  renderNoteView();
+}
+
+function _qLabel() { return {120:'Q2H',180:'Q3H',240:'Q4H',360:'Q6H',480:'Q8H'}[parseInt(document.getElementById('feed-interval')?.value)||180] || ''; }
+function _intervalMin() { return parseInt(document.getElementById('feed-interval')?.value)||180; }
+function _timingOn() { return !!document.getElementById('timing-toggle')?.checked; }
+function _startMin() { const s=(document.getElementById('timing-start')?.value)||'06:00'; const p=s.split(':'); return (parseInt(p[0])||0)*60+(parseInt(p[1])||0); }
+function _fmtClock(min) { min=((Math.round(min)%1440)+1440)%1440; return String(Math.floor(min/60)).padStart(2,'0')+':'+String(min%60).padStart(2,'0'); }
+function _feedTimes(n) { const st=_startMin(), iv=_intervalMin(), a=[]; for(let i=0;i<n;i++) a.push(_fmtClock(st+i*iv)); return a; }
+function _windowStr(n) { if(!_timingOn()||n<1) return ''; const t=_feedTimes(n); return ` (${t[0]}-${t[t.length-1]})`; }
+function _assignSlots(items, total) {
+  const counts=items.map(()=>0), slots=[];
+  for(let i=0;i<total;i++){ let best=0,bs=-1; items.forEach((it,idx)=>{ const rem=it.freq-counts[idx]; if(rem<=0) return; const sc=rem/it.freq; if(sc>bs){bs=sc;best=idx;} }); slots.push(best); counts[best]++; }
+  return slots;
+}
+function _itemTimes(items, idx, total) {
+  if(!_timingOn()) return '';
+  const slots=_assignSlots(items,total), times=_feedTimes(total), mine=[];
+  slots.forEach((s,i)=>{ if(s===idx) mine.push(times[i]); });
+  return mine.length ? ` (${mine.join(', ')})` : '';
+}
+function _scoopsBracket(f, vol) {
+  if(!f||!f.scoopG||!f.stdDilution||!vol) return '';
+  const s=Math.round(vol*(f.stdDilution/100)/f.scoopG*2)/2; if(s<=0) return '';
+  return (s===Math.round(s)?s:s.toFixed(1))+' scoops/feed';
+}
+function _prepStr(f, vol) {
+  if(!f||!vol) return '';
+  if(f.type==='sachet'&&f.sachetG&&f.sachetVolume){ const n=vol/f.sachetVolume; const nL=n===Math.round(n)?n:n.toFixed(1); return `${nL} sachet${n!==1?'s':''} + ${Math.round(n*f.sachetWater)}ml water = ${Math.round(vol)}ml per feed`; }
+  if(!f.scoopG||!f.stdDilution||!f.stdWaterPerScoop) return '';
+  const s=Math.round(vol*(f.stdDilution/100)/f.scoopG*2)/2; if(s<=0) return '';
+  const sL=s===Math.round(s)?s:s.toFixed(1);
+  return `${sL} scoop${s!==1?'s':''} + ${Math.round(s*f.stdWaterPerScoop)}ml water = ${Math.round(vol)}ml per feed`;
+}
+function _conciseTail(r, ctx) {
+  const fd=getFluidData(); const { targetKcal, targetProt, weight }=ctx; const out=[];
+  const kcalKg = weight ? ` (${Math.round(r.kcalDay/weight)}/kg)` : '';
+  const protKg = weight ? ` (${(r.protDay/weight).toFixed(1)}/kg)` : '';
+  let prov=`Provides ${r.kcalDay} kcal${kcalKg}, ${r.protDay}g protein${protKg}`;
+  const pct=[]; const kcalIV=r.kcalDay+(fd.ivKcalDay||0);
+  if(targetKcal) pct.push(`${Math.round(kcalIV/targetKcal*100)}% EER`);
+  if(targetProt) pct.push(`${Math.round(r.protDay/targetProt*100)}% EPR`);
+  if(pct.length) prov+=` - ${pct.join(', ')}`;
+  out.push('  '+prov);
+  if(r.naDay||r.kDay) out.push(`  Na ${r.naDay||0}mg, K ${r.kDay||0}mg/day`);
+  const feedVol=Math.round(r.totalVol||0), flushAll=Math.round((fd.flushTotal||0)+(fd.extraFlushTotal||0)), iv=Math.round(fd.ivVolDay||0);
+  const parts=[`${feedVol} feed`]; if(flushAll) parts.push(`${flushAll} flush`); if(iv) parts.push(`${iv} IV`);
+  const totalFluid=feedVol+flushAll+iv;
+  let fl=`Total fluid ${totalFluid}ml/day (${parts.join(' + ')})`;
+  if(fd.fluidTarget) fl+=` - ${Math.round(totalFluid/fd.fluidTarget*100)}% EFR`;
+  out.push('  '+fl);
+  return out;
+}
+function buildConciseNote(r, ctx) {
+  const { route, vol, freq } = ctx;
+  const fd=getFluidData();
+  const q=_qLabel();
+  const flush=(fd.tubeFed&&fd.flushVol>0)?` with ${fd.flushVol}ml pre & ${fd.flushVol}ml post flush`:'';
+  const lines=[];
+
+  if(feedType==='multi'){
+    const tot=getMultiTotals();
+    lines.push(`${route} ${q} x ${tot.totalFeeds} feeds/day${flush}:`);
+    tot.items.forEach((it,idx)=>{
+      const times=_itemTimes(tot.items, idx, tot.totalFeeds);
+      let sc=''; if(useCase===1){ const b=_scoopsBracket(it.f,it.vol); if(b) sc=` (${b})`; }
+      lines.push(`  - ${it.f.name} ${it.vol}ml x${it.freq}${sc}${times}`);
+      if(useCase===2){ const p=_prepStr(it.f,it.vol); if(p) lines.push(`      prep: ${p}`); }
+    });
+    return lines.concat(_conciseTail(r,ctx)).join('\n');
+  }
+
+  if(feedType==='btf' || r.btfBased){
+    const ex=getBtfExtraTotals();
+    const total=r.btfFreq + (r.fFreq||0) + ex.totalFeeds;
+    lines.push(`${route} ${q} x ${total} feeds/day${_windowStr(total)}${flush}:`);
+    lines.push(`  - Blended feed ${r.btfVol}ml x${r.btfFreq} (~${r.btfKcal} kcal/100ml)`);
+    if(r.fTotal && btfFormula){
+      lines.push(`  - ${btfFormula.name} ${r.fVol}ml x${r.fFreq}`);
+      if(useCase===2){ const p=_prepStr(btfFormula, r.fVol); if(p) lines.push(`      prep: ${p}`); }
+    }
+    ex.items.forEach(it=>{
+      lines.push(`  - ${it.f.name} ${it.vol}ml x${it.freq}`);
+      if(useCase===2){ const p=_prepStr(it.f, it.vol); if(p) lines.push(`      prep: ${p}`); }
+    });
+    lines.push('  NB blended-feed values are estimates - verify with recipe');
+    return lines.concat(_conciseTail(r,ctx)).join('\n');
+  }
+
+  let feedName='feed', nameBracket='', prepLine='';
+  if(feedType==='formula' && selectedFormula){
+    const f=getEffectiveFormula();
+    feedName=f.name;
+    if(useCase===1){ const b = r.scoopBased ? `${r.scoopsPerFeed} scoops/feed` : _scoopsBracket(f,vol); if(b) nameBracket=` (${b})`; }
+    if(useCase===2){ const p=_prepStr(f,vol); if(p) prepLine=`  prep: ${p}`; }
+  } else if(feedType==='ebm'){ feedName='EBM';
+  } else if(feedType==='ebmfort'){ const fk=document.getElementById('ebmFortFormula')?.value; const ff=fk?FORMULAS.paediatric.formulas[fk]:null; feedName=`fortified EBM${ff?' + '+ff.name:''}`;
+  } else if(feedType==='mixed'){ feedName=`EBM + ${mixedFormula?mixedFormula.name:'formula'}`; }
+
+  lines.push(`${route} ${vol}ml ${q} x ${freq} feeds/day${_windowStr(freq)} with ${feedName}${nameBracket}${flush}`);
+  if(prepLine) lines.push(prepLine);
+  return lines.concat(_conciseTail(r,ctx)).join('\n');
+}
+
 function renderNotesOutput(r, targetKcal, targetProt, weight, ageGroup, route, vol, freq) {
   r_global_vol = vol;
   const lines = [];
@@ -3262,7 +3418,7 @@ function renderNotesOutput(r, targetKcal, targetProt, weight, ageGroup, route, v
     }
   }
 
-  document.getElementById('output-text').textContent = lines.join('\n');
+  setNotes(lines.join('\n'), r, { targetKcal, targetProt, weight, ageGroup, route, vol, freq });
 }
 
 // ── BTF Notes ─────────────────────────────────────────────────────────────────
@@ -3402,7 +3558,7 @@ function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
 ⚠ Formula volume is approximate (scoop-based). Adjust flush/IV if needed to meet EFR.`);
   }
 
-  document.getElementById('output-text').textContent = lines.join('\n');
+  setNotes(lines.join('\n'), r, { targetKcal, targetProt, weight, route });
 }
 
 // ── Copy ──────────────────────────────────────────────────────────────────────
@@ -3827,7 +3983,7 @@ function renderMultiNotes(r, targetKcal, targetProt, weight, ageGroup, route) {
     if(fd.fluidTarget) s += ` (${Math.round(totalFluid/fd.fluidTarget*100)}% of EFR ${fd.fluidTarget}ml)`;
     s += '\n';
   }
-  document.getElementById('output-text').textContent = s;
+  setNotes(s, r, { targetKcal, targetProt, weight, ageGroup, route });
 }
 
 // ── Step progress cues: ✓ on completed steps + Calculate-button readiness ──────
