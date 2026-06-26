@@ -368,45 +368,28 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- PATIENT INFO -->
 <div class="card">
-  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 1</span><span class="step-title">Patient &amp; requirements</span></span><span class="step-check" id="sb1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
+  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 1</span><span class="step-title">Target requirements</span></span><span class="step-check" id="sb1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
   <div class="g2">
     <div>
       <label>Weight (kg)</label>
       <input type="number" id="weight" placeholder="e.g. 4.5" step="0.01" oninput="updateEER()">
     </div>
     <div>
-      <label>Age group</label>
-      <select id="ageGroup" onchange="updateEER()">
-        <option value="">— select —</option>
-        <option value="preterm">Preterm / Neonate</option>
-        <option value="0-6m">0–6 months</option>
-        <option value="6-12m">6–12 months</option>
-        <option value="1-2y">1–2 years</option>
-        <option value="2-6y">2–6 years</option>
-        <option value="6-18y">6–18 years</option>
-        <option value="adult">Adult</option>
-      </select>
+      <label>Estimated fluid requirements (ml/day) <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <input type="number" id="fluid-target" placeholder="e.g. 900" oninput="updateFluidSummary()">
     </div>
   </div>
   <div class="g2">
     <div>
-      <label>Target energy (kcal/day)</label>
+      <label>Estimated energy requirements (kcal/day)</label>
       <input type="number" id="targetKcal" placeholder="e.g. 600" oninput="updateOutputPreview()">
     </div>
     <div>
-      <label>Target protein (g/day)</label>
+      <label>Estimated protein requirements (g/day)</label>
       <input type="number" id="targetProt" placeholder="e.g. 12" step="0.1" oninput="updateOutputPreview()">
     </div>
   </div>
-  <div class="hint" style="margin-top:.35rem"><i>Optional — enter targets to see the result as % of target (the adequacy bars).</i></div>
-  <div id="eer-display" class="eer-row section-hidden"></div>
-  <div id="efr-display" class="eer-row section-hidden" style="margin-top:.4rem;background:#e0f2fe;border-color:#7dd3fc;color:#075985"></div>
-  <div class="g2" style="margin-top:.5rem">
-    <div>
-      <label>Target fluid (ml/day) <span style="font-weight:400;color:var(--muted)">(optional override)</span></label>
-      <input type="number" id="fluid-target" placeholder="auto from weight" oninput="updateEFR()">
-    </div>
-  </div>
+  <div class="hint" style="margin-top:.35rem"><i>Enter your calculated requirements to see the result as % of target (the adequacy bars).</i></div>
 </div>
 
 <!-- FEED TYPE -->
@@ -434,7 +417,7 @@ select:focus,input:focus{border-color:var(--accent)}
     <select id="formulaSelect" onchange="onFormulaChange()">
       <option value="">— select formula —</option>
     </select>
-    <div id="formula-info-box" class="section-hidden"></div>
+    <div id="formula-safety" class="section-hidden" style="margin-top:.5rem"></div>
 
     <!-- Multi-concentration selector (dynamic — rendered for any multiConc formula) -->
     <div id="peptjnr-conc" class="section-hidden">
@@ -796,6 +779,9 @@ select:focus,input:focus{border-color:var(--accent)}
       <div id="uc2-working-text" style="font-family:monospace;line-height:1.7;white-space:pre-wrap"></div>
     </div>
   </div>
+
+  <!-- Selected-formula details & prep cheat sheet (reference — below the volume entry) -->
+  <div id="formula-info-box" class="section-hidden" style="margin-top:.6rem"></div>
 </div>
 
 <!-- FLUIDS & IV CARD -->
@@ -1954,7 +1940,7 @@ function loadExample() {
   setFeedType('formula');
   setUseCase(1);
   document.getElementById('weight').value = '14';
-  document.getElementById('ageGroup').value = '2-6y';
+  const _ageEl = document.getElementById('ageGroup'); if(_ageEl) _ageEl.value = '2-6y';
   document.getElementById('targetKcal').value = '1000';
   document.getElementById('targetProt').value = '25';
   if(typeof updateEER === 'function') updateEER();
@@ -2066,6 +2052,7 @@ function populateFormulaSelects() {
   selectedFormula = null;
   btfFormula = null;
   document.getElementById('formula-info-box').classList.add('section-hidden');
+  document.getElementById('formula-safety')?.classList.add('section-hidden');
   document.getElementById('peptjnr-conc').classList.add('section-hidden');
   refreshAllCombos();
   // Re-fill any multi-formula line pickers for the current patient group
@@ -2128,6 +2115,14 @@ function showFeedSection() {
   const map = {formula:'section-formula',ebm:'section-ebm',ebmfort:'section-ebmfort',mixed:'section-mixed',btf:'section-btf',multi:'section-multi'};
   document.getElementById(map[feedType]).classList.remove('section-hidden');
   document.getElementById('output-section').style.display='none';
+  // formula-info-box now lives in the Step 3 card (shared), so hide it unless we're
+  // on the formula tab with a formula selected.
+  const ffShow = (feedType==='formula' && selectedFormula);
+  if(ffShow) renderFormulaInfo(selectedFormula, 'formula-info-box');
+  else {
+    document.getElementById('formula-info-box')?.classList.add('section-hidden');
+    document.getElementById('formula-safety')?.classList.add('section-hidden');
+  }
 }
 
 // ── Formula selection ─────────────────────────────────────────────────────────
@@ -2243,6 +2238,12 @@ function renderFormulaInfo(f, boxId, key) {
   if(f.peptide && !f.cma)              crit.push("NOT suitable for cow's milk protein allergy (CMPA)");
   if(f.supplement)                     crit.push('Supplement only — not a complete feed');
   const criticalHTML = crit.length ? `<div class="crit-banner">⚠ ${crit.join(' &nbsp;·&nbsp; ')}</div>` : '';
+  // Critical safety warnings stay next to the picker (boxId is the detail box, which
+  // may sit lower on the page). Only the formula-tab picker has a separate safety slot.
+  if(boxId==='formula-info-box'){
+    const safety=document.getElementById('formula-safety');
+    if(safety){ safety.innerHTML=criticalHTML; safety.classList.toggle('section-hidden', !crit.length); }
+  }
 
   // ── Properties badges (formula characteristics) ──
   const propBadges = [];
@@ -2325,25 +2326,27 @@ function renderFormulaInfo(f, boxId, key) {
       </div>`;
   }
 
+  const boxCrit = (boxId==='formula-info-box') ? '' : criticalHTML;  // formula tab shows it in #formula-safety instead
   box.innerHTML = `
     <div class="formula-info">
-      ${criticalHTML}
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:.5rem">${f.name} <span style="color:var(--muted);font-weight:400;font-size:.78rem">${f.age}</span></div>
+      ${boxCrit}
+      <details class="fi-details fi-collapse">
+        <summary><strong>${f.name}</strong> <span style="color:var(--muted);font-weight:400">· ${kcalStr}${f.protein?` · ${f.protein}g protein/100ml`:''} · details &amp; cheat sheet</span></summary>
 
-      ${propBadges.length ? `
-      <div style="margin-bottom:.4rem">
-        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.2rem">Properties</div>
-        <div>${propBadges.join(' ')}</div>
-      </div>` : ''}
+        <div style="font-weight:700;font-size:.85rem;margin:.4rem 0 .5rem">${f.name} <span style="color:var(--muted);font-weight:400;font-size:.78rem">${f.age}</span></div>
 
-      ${allergenBadges.length ? `
-      <div style="margin-bottom:.6rem">
-        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9f1239;margin-bottom:.2rem">⚠ Contains Allergens</div>
-        <div>${allergenBadges.join(' ')}</div>
-      </div>` : ''}
+        ${propBadges.length ? `
+        <div style="margin-bottom:.4rem">
+          <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.2rem">Properties</div>
+          <div>${propBadges.join(' ')}</div>
+        </div>` : ''}
 
-      <details class="fi-details">
-        <summary>Full nutrition (per 100 ml${(f.scoopG||f.type==='sachet')?' &amp; per scoop':''})</summary>
+        ${allergenBadges.length ? `
+        <div style="margin-bottom:.6rem">
+          <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9f1239;margin-bottom:.2rem">⚠ Contains Allergens</div>
+          <div>${allergenBadges.join(' ')}</div>
+        </div>` : ''}
+
         <div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:.35rem 0 .25rem">Nutrition per 100ml</div>
         <div class="fi-row"><span>Energy</span><span class="fi-val">${kcalStr}</span></div>
         <div class="fi-row"><span>Protein</span><span class="fi-val">${f.protein}g</span></div>
@@ -2353,12 +2356,12 @@ function renderFormulaInfo(f, boxId, key) {
         <div class="fi-row"><span>Sodium</span><span class="fi-val">${f.sodium}mg</span></div>
         <div class="fi-row"><span>Potassium</span><span class="fi-val">${f.potassium}mg</span></div>
         ${scoopHTML}
-      </details>
-      ${dilutionHTML}
-      ${buildPrepSheet(f)}
+        ${dilutionHTML}
+        ${buildPrepSheet(f)}
 
-      ${f.notes ? `<div style="margin-top:.5rem;color:var(--muted);font-size:.72rem;line-height:1.4">${f.notes.replace(/NOT suitable for cows' milk protein allergy/g,'<strong style="color:var(--danger)">⚠ NOT suitable for cows\' milk protein allergy</strong>')}</div>` : ''}
-      ${buildAvailabilityHTML(key)}
+        ${f.notes ? `<div style="margin-top:.5rem;color:var(--muted);font-size:.72rem;line-height:1.4">${f.notes.replace(/NOT suitable for cows' milk protein allergy/g,'<strong style="color:var(--danger)">⚠ NOT suitable for cows\' milk protein allergy</strong>')}</div>` : ''}
+        ${buildAvailabilityHTML(key)}
+      </details>
     </div>`;
 }
 
@@ -2531,24 +2534,9 @@ function updateEBMFortInfo() {
 
 // ── EER estimate ──────────────────────────────────────────────────────────────
 function updateEER() {
-  const wt = parseFloat(document.getElementById('weight').value);
-  const age = document.getElementById('ageGroup').value;
-  const display = document.getElementById('eer-display');
-  if(!wt || !age) { display.classList.add('section-hidden'); return; }
-  let eer = null, eerLabel = '';
-  if(age==='preterm') { eer=[Math.round(wt*110),Math.round(wt*130)]; eerLabel='110–130 kcal/kg (enteral, preterm)'; }
-  else if(age==='0-6m') { eer=[Math.round(wt*100),Math.round(wt*115)]; eerLabel='100–115 kcal/kg'; }
-  else if(age==='6-12m') { eer=[Math.round(wt*95),Math.round(wt*105)]; eerLabel='95–105 kcal/kg'; }
-  else if(age==='1-2y') { eer=[Math.round(wt*90),Math.round(wt*100)]; eerLabel='90–100 kcal/kg'; }
-  else if(age==='2-6y') { eer=[Math.round(wt*80),Math.round(wt*90)]; eerLabel='80–90 kcal/kg'; }
-  else if(age==='6-18y') { eer=[Math.round(wt*60),Math.round(wt*70)]; eerLabel='60–70 kcal/kg'; }
-  else { eer=[Math.round(wt*25),Math.round(wt*30)]; eerLabel='25–30 kcal/kg (hospitalised adult)'; }
-  if(eer) {
-    display.classList.remove('section-hidden');
-    display.innerHTML = `<strong>Estimated EER:</strong> ${eer[0]}–${eer[1]} kcal/day (${eerLabel})<br><span style="font-size:.7rem;font-weight:400;opacity:.8">WHO/FAO reference ranges · For accurate requirements use NutriCalc</span>`;
-  }
-  updateEFR();
-  updateFluidSummary();
+  // Age-based auto-estimates removed — requirements are entered manually.
+  if(typeof updateFluidSummary==='function') updateFluidSummary();
+  if(typeof updateStepStatus==='function') updateStepStatus();
 }
 
 function updateOutputPreview() {
@@ -2606,7 +2594,7 @@ function _calculate() {
   const weight = parseFloat(document.getElementById('weight').value) || null;
   const targetKcal = parseFloat(document.getElementById('targetKcal').value) || null;
   const targetProt = parseFloat(document.getElementById('targetProt').value) || null;
-  const ageGroup = document.getElementById('ageGroup').value;
+  const ageGroup = document.getElementById('ageGroup')?.value || '';
 
   // Get route and vol/freq from the correct use case section
   let route, volPerFeed, feedsPerDay;
@@ -3648,6 +3636,7 @@ function clearAll() {
   document.getElementById('output-section').style.display='none';
   selectedFormula=null;
   document.getElementById('formula-info-box').classList.add('section-hidden');
+  document.getElementById('formula-safety')?.classList.add('section-hidden');
   document.getElementById('formula-conc-section').classList.add('section-hidden');
   document.getElementById('peptjnr-conc').classList.add('section-hidden');
   refreshAllCombos();
@@ -4052,7 +4041,7 @@ function _setStepBadge(id, done, n) {
   el.classList.toggle('done', done);
 }
 function updateStepStatus() {
-  const s1 = !!_fieldVal('weight') && !!_fieldVal('ageGroup');
+  const s1 = !!_fieldVal('weight');
   const multiReady = (typeof getMultiTotals==='function') && getMultiTotals().items.length > 0;
   const s2 = ['ebm', 'ebmfort'].includes(feedType)
     || (feedType==='multi' ? multiReady : (!!_fieldVal('formulaSelect') || !!_fieldVal('mixedFormulaSelect') || !!_fieldVal('btfFormulaSelect')));
