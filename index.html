@@ -375,17 +375,17 @@ select:focus,input:focus{border-color:var(--accent)}
       <input type="number" id="weight" placeholder="e.g. 4.5" step="0.01" oninput="updateEER()">
     </div>
     <div>
-      <label>Estimated fluid requirements (ml/day) <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <label>EFR (ml/day) <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
       <input type="number" id="fluid-target" placeholder="e.g. 900" oninput="updateFluidSummary()">
     </div>
   </div>
   <div class="g2">
     <div>
-      <label>Estimated energy requirements (kcal/day)</label>
+      <label>EER (kcal/day)</label>
       <input type="number" id="targetKcal" placeholder="e.g. 600" oninput="updateOutputPreview()">
     </div>
     <div>
-      <label>Estimated protein requirements (g/day)</label>
+      <label>EPR (g/day)</label>
       <input type="number" id="targetProt" placeholder="e.g. 12" step="0.1" oninput="updateOutputPreview()">
     </div>
   </div>
