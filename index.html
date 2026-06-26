@@ -65,9 +65,11 @@ header p{font-size:.82rem;color:var(--muted);margin-top:.3rem}
 .calc-readiness{font-size:.78rem;color:#92400e;background:#fff8e8;border:1px solid #fcd34d;border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;text-align:center}
 .note-mode-btn{font-size:.74rem;font-weight:700;padding:.3rem .85rem;border:1.5px solid var(--border);border-radius:7px;background:var(--card);color:var(--muted);cursor:pointer}
 .note-mode-btn.active{border-color:var(--accent);background:var(--light);color:var(--accent)}
-.sched-row{display:flex;align-items:center;gap:.6rem;margin-top:.4rem}
+.sched-slot{margin-top:.5rem;padding-bottom:.45rem;border-bottom:1px dashed var(--border)}
+.sched-row{display:flex;align-items:center;gap:.6rem}
 .sched-time{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--accent);min-width:3.2rem}
 .sched-row select{flex:1}
+.sched-label{width:100%;margin-top:.3rem;margin-left:3.8rem;width:calc(100% - 3.8rem);box-sizing:border-box;padding:.32rem .55rem;border:1.5px solid var(--border);border-radius:7px;font-size:.76rem}
 .btn-primary.ready{animation:readypulse 1.7s ease-in-out infinite}
 @keyframes readypulse{0%,100%{box-shadow:0 6px 18px rgba(71,85,105,.3)}50%{box-shadow:0 0 0 4px rgba(22,163,74,.4),0 6px 18px rgba(71,85,105,.3)}}
 .opt-tag{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:20px;padding:.12rem .5rem}
@@ -556,15 +558,10 @@ select:focus,input:focus{border-color:var(--accent)}
       </div>
       <div>
         <label>BTF feeds per day</label>
-        <input type="number" id="btf-freq" placeholder="e.g. 3" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary();if(btfUseCase===2){renderBTFMealInputs();generateBTFSchedule();}">
+        <input type="number" id="btf-freq" placeholder="e.g. 3" oninput="updateBTFPreview();updateFlushPreview();updateFluidSummary()">
       </div>
     </div>
 
-    <!-- BTF meal names (UC2 only) - rendered by JS based on btf-freq -->
-    <div id="btf-meal-names" class="section-hidden" style="margin-top:.5rem">
-      <div class="sub-head">BTF Meal Names <span class="sub-note">(one per BTF feed)</span></div>
-      <div id="btf-meal-inputs"></div>
-    </div>
     </div><!-- /blended feed group -->
 
     <!-- Formula group -->
@@ -624,7 +621,7 @@ select:focus,input:focus{border-color:var(--accent)}
           </div>
           <div>
             <label>Formula feeds per day</label>
-            <input type="number" id="btf-ffreq2" placeholder="e.g. 3" min="1" step="1" oninput="this.value=Math.round(this.value)||'';updateBTFPreview();btfUC2ShowWorking();generateBTFSchedule();updateFluidSummary()">
+            <input type="number" id="btf-ffreq2" placeholder="e.g. 3" min="1" step="1" oninput="this.value=Math.round(this.value)||'';updateBTFPreview();btfUC2ShowWorking();updateFluidSummary()">
           </div>
         </div>
       </div>
@@ -637,7 +634,7 @@ select:focus,input:focus{border-color:var(--accent)}
           </div>
           <div>
             <label>Formula feeds per day</label>
-            <input type="number" id="btf-ffreq2-s" placeholder="e.g. 3" min="1" step="1" oninput="this.value=Math.round(this.value)||'';updateBTFPreview();btfUC2ShowWorking();generateBTFSchedule();updateFluidSummary()">
+            <input type="number" id="btf-ffreq2-s" placeholder="e.g. 3" min="1" step="1" oninput="this.value=Math.round(this.value)||'';updateBTFPreview();btfUC2ShowWorking();updateFluidSummary()">
           </div>
         </div>
       </div>
@@ -656,26 +653,7 @@ select:focus,input:focus{border-color:var(--accent)}
       <button type="button" class="btn btn-secondary" style="margin-top:.5rem" onclick="addBtfLine()">＋ Add a formula</button>
     </div>
 
-    <!-- Schedule (UC2 only) -->
-    <div id="btf-schedule-section" class="section-hidden" style="margin-top:.8rem">
-      <div class="sub-head">Feeding Schedule</div>
-      <div class="g2" style="margin-bottom:.5rem">
-        <div>
-          <label>First feed time</label>
-          <input type="time" id="btf-start-time" value="07:00" onchange="generateBTFSchedule()">
-        </div>
-        <div>
-          <label>Feed interval</label>
-          <select id="btf-interval" onchange="generateBTFSchedule()">
-            <option value="120">Q2H (every 2 hours)</option>
-            <option value="180" selected>Q3H (every 3 hours)</option>
-            <option value="240">Q4H (every 4 hours)</option>
-            <option value="360">Q6H (every 6 hours)</option>
-          </select>
-        </div>
-      </div>
-      <div id="btf-schedule-rows"></div>
-    </div>
+    <!-- Schedule lives in the shared "Feed schedule" card below (assign each feed) -->
 
     <!-- F&B instruction preview (UC2 only) - auto from btf-vol -->
     <div id="btf-fnb-section" class="section-hidden" style="margin-top:.8rem">
@@ -1397,12 +1375,16 @@ function setBTFUseCase(uc) {
   document.getElementById('btf-uc-tab-2').classList.toggle('active', uc===2);
   document.getElementById('btf-uc1-formula').classList.toggle('section-hidden', uc!==1);
   document.getElementById('btf-uc2-formula').classList.toggle('section-hidden', uc!==2);
-  document.getElementById('btf-schedule-section').classList.toggle('section-hidden', uc!==2);
   document.getElementById('btf-fnb-section').classList.toggle('section-hidden', uc!==2);
-  document.getElementById('btf-meal-names').classList.toggle('section-hidden', uc!==2);
-  document.getElementById('calc-btn').textContent = uc===1 ? 'Calculate nutrition support' : 'Calculate nutrition support';
-  if(uc===2) { renderBTFMealInputs(); generateBTFSchedule(); btfUC2ShowWorking(); updateFnBPreview(); }
+  _sched = null; _schedLabels = {};
+  if(uc===2) {
+    btfUC2ShowWorking(); updateFnBPreview();
+    // Reveal the consolidated "assign each feed" schedule straight away
+    const tt=document.getElementById('timing-toggle');
+    if(tt && !tt.checked) { tt.checked=true; onTimingToggle(); }
+  }
   updateBTFPreview();
+  if(typeof renderScheduleEditor==='function') renderScheduleEditor();
 }
 
 function getBTFFormulaVolFreq() {
@@ -1481,86 +1463,6 @@ function updateFnBPreview() {
   el.textContent = `Food Service Instructions\nDiet code: ${btfVol}ml Blended Tube Feeds\nDiet  B: ${btfVol}ml  L: ${btfVol}ml  D: ${btfVol}ml`;
 }
 
-// ── BTF Schedule generation ───────────────────────────────────────────────────
-function renderBTFMealInputs() {
-  // Render meal name inputs separately so they don't re-render on each keystroke
-  const btfFreq = parseInt(document.getElementById('btf-freq')?.value)||0;
-  const container = document.getElementById('btf-meal-inputs');
-  if(!container || !btfFreq) return;
-  // Only re-render if count changed
-  const existing = container.querySelectorAll('.btf-meal-name-input');
-  if(existing.length === btfFreq) return; // same count — don't re-render, preserve text
-  const placeholders = ['Oats porridge with egg','Rice porridge with chicken','Rice porridge with fish','Congee with vegetables'];
-  container.innerHTML = Array.from({length:btfFreq},(_,i)=>`
-    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
-      <span style="font-size:.75rem;font-weight:600;color:var(--muted);min-width:6rem">BTF Feed ${i+1}</span>
-      <input class="btf-meal-name-input" type="text" placeholder="${placeholders[i%4]||'Meal description'}"
-        style="flex:1;padding:.35rem .55rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem"
-        onchange="generateBTFSchedule()">
-    </div>`).join('');
-}
-
-function generateBTFSchedule() {
-  const btfFreq  = parseInt(document.getElementById('btf-freq')?.value)||0;
-  const {fFreq}  = getBTFFormulaVolFreq();
-  const startStr = document.getElementById('btf-start-time')?.value || '07:00';
-  const intervalMin = parseInt(document.getElementById('btf-interval')?.value)||180;
-  const container = document.getElementById('btf-schedule-rows');
-  if(!container) return;
-
-  const totalFeeds = btfFreq + fFreq;
-  if(!totalFeeds) { container.innerHTML=''; return; }
-
-  // Build slots purely from start time + interval, BTF feeds evenly distributed
-  const [startH, startM] = startStr.split(':').map(Number);
-  const slots = [];
-  let mc = startH*60+startM;
-  for(let i=0;i<totalFeeds;i++) { slots.push({min:mc,type:null}); mc+=intervalMin; }
-
-  // Distribute BTF slots evenly across total feeds
-  const btfIndices = new Set();
-  if(btfFreq >= totalFeeds) {
-    slots.forEach((_,i) => btfIndices.add(i));
-  } else {
-    // Space them evenly
-    for(let i=0;i<btfFreq;i++) {
-      const idx = Math.round(i * totalFeeds / btfFreq);
-      btfIndices.add(Math.min(idx, totalFeeds-1));
-    }
-    // Fill any gaps if rounding caused duplicates
-    let btfCount = btfIndices.size;
-    for(let i=0;i<totalFeeds && btfCount<btfFreq;i++) {
-      if(!btfIndices.has(i)) { btfIndices.add(i); btfCount++; }
-    }
-  }
-  slots.forEach((s,i) => s.type = btfIndices.has(i)?'btf':'formula');
-
-  const mealInputs = document.querySelectorAll('.btf-meal-name-input');
-  const btfVol = document.getElementById('btf-vol')?.value||'?';
-  const {fVol} = getBTFFormulaVolFreq();
-  let btfIdx=0;
-
-  container.innerHTML = slots.map(s => {
-    const t = minToTime(s.min);
-    const isBTF = s.type==='btf';
-    const mealName = isBTF ? (mealInputs[btfIdx]?.value||`BTF Feed ${btfIdx+1}`) : '';
-    if(isBTF) btfIdx++;
-    const label = isBTF
-      ? `<strong style="color:#166534">BTF</strong> — ${mealName||'(enter meal name in fields above)'}`
-      : `<strong style="color:var(--accent)">${btfFormula?.name||'Formula'}</strong>`;
-    return `<div style="display:flex;align-items:baseline;gap:.6rem;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.78rem">
-      <span style="min-width:5.5rem;font-weight:700;color:var(--muted)">${t}</span>
-      <span>${label}</span>
-      <span style="margin-left:auto;color:var(--muted)">${isBTF?btfVol:(fVol||'?')}ml</span>
-    </div>`;
-  }).join('');
-}
-
-function minToTime(mins) {
-  const h = Math.floor(mins/60) % 24;
-  const m = mins % 60;
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-}
 
 function setBTFDensity(level) {
   btfDensity = level;
@@ -2214,7 +2116,7 @@ function setFeedType(type) {
     addMultiLine(); addMultiLine();
   }
   showFeedSection();
-  _sched = null;
+  _sched = null; _schedLabels = {};
   if(typeof renderScheduleEditor==='function') renderScheduleEditor();
   if(typeof updateStepStatus==='function') updateStepStatus();
 }
@@ -3202,7 +3104,11 @@ function _conciseTail(r, ctx) {
   return out;
 }
 // ── Editable feed schedule: assign which feed goes at which time ───────────────
-let _sched = null;
+let _sched = null;        // slot index -> component index
+let _schedLabels = {};    // slot index -> custom label / recipe text
+// Nutrition-support mode for the active feed type. BTF has its own UC tabs
+// (btfUseCase); everything else follows the main useCase.
+function _supportMode(){ return feedType==='btf' ? (btfUseCase===2) : (useCase===2); }
 function _setBtfPrimaryFreq(n) {
   let id;
   if(btfUseCase===1) id = (btfInputMethod==='scoop') ? 'btf-ffreq-s' : 'btf-ffreq';
@@ -3231,7 +3137,7 @@ function _scheduleComponents() {
   return comps;
 }
 function _scheduleActive() {
-  if(useCase!==2) return false;          // "assign each feed" is a nutrition-support feature only
+  if(!_supportMode()) return false;      // "assign each feed" is a nutrition-support feature only
   if(!_timingOn()) return false;
   if(feedType!=='multi' && feedType!=='btf') return false;
   return _scheduleComponents().length >= 2;
@@ -3246,17 +3152,22 @@ function buildSchedule() {
   }
   return { comps, total };
 }
+function _escAttr(s){ return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function renderScheduleEditor() {
   const wrap=document.getElementById('sched-editor'); if(!wrap) return;
   if(!_scheduleActive()){ wrap.classList.add('section-hidden'); wrap.innerHTML=''; return; }
   const { comps, total }=buildSchedule();
   if(total<1){ wrap.classList.add('section-hidden'); wrap.innerHTML=''; return; }
   const times=_feedTimes(total);
-  let html='<div class="sub-head" style="margin-top:.7rem">Assign each feed</div>';
+  let html='<div class="sub-head" style="margin-top:.7rem">Assign each feed <span class="sub-note">(set time, feed & an optional label)</span></div>';
   for(let i=0;i<total;i++){
-    html+='<div class="sched-row"><span class="sched-time">'+times[i]+'</span><select data-slot="'+i+'" onchange="onSchedChange(this)">'
-      + comps.map((c,ci)=>'<option value="'+ci+'"'+(_sched[i]===ci?' selected':'')+'>'+c.label+' '+c.vol+'ml</option>').join('')
-      + '</select></div>';
+    const ci=_sched[i], c=comps[ci]||comps[0];
+    const ph = (c && !c.f) ? 'e.g. Rice porridge with chicken' : 'optional label';
+    html+='<div class="sched-slot"><div class="sched-row"><span class="sched-time">'+times[i]+'</span>'
+      + '<select data-slot="'+i+'" onchange="onSchedChange(this)">'
+      + comps.map((cc,k)=>'<option value="'+k+'"'+(_sched[i]===k?' selected':'')+'>'+cc.label+' '+cc.vol+'ml</option>').join('')
+      + '</select></div>'
+      + '<input class="sched-label" type="text" data-slot="'+i+'" value="'+_escAttr(_schedLabels[i])+'" placeholder="'+ph+'" oninput="onSchedLabel(this)"></div>';
   }
   wrap.classList.remove('section-hidden');
   wrap.innerHTML=html;
@@ -3268,6 +3179,16 @@ function onSchedChange(sel) {
   if(feedType==='multi') updateMultiPreview(); else updateBTFPreview();
   updateFlushPreview(); updateFluidSummary();
   if(typeof updateStepStatus==='function') updateStepStatus();
+}
+function onSchedLabel(inp) {
+  const i=parseInt(inp.dataset.slot);
+  if(inp.value.trim()) _schedLabels[i]=inp.value; else delete _schedLabels[i];
+  _noteRefreshOnly();   // don't re-render the editor mid-typing (would drop focus)
+}
+function _noteRefreshOnly() {
+  if(!_lastR) return;
+  try { _noteConcise = buildConciseNote(_lastR, _lastCtx); } catch(e) { console.error('Concise note error:', e); }
+  renderNoteView();
 }
 function _compDensity(c){
   if(c.kcal100==null) return '';
@@ -3287,7 +3208,8 @@ function _scheduleNote(route, q, flush, r, ctx, isBtf) {
   const seen=new Set();
   for(let i=0;i<total;i++){
     const ci=_sched[i], c=comps[ci]; if(!c) continue;
-    let line=`  ${times[i]}: ${c.label}${uvol?'':` ${c.vol}ml`}`;
+    const custom=(_schedLabels[i]||'').trim();
+    let line=`  ${times[i]}: ${custom||c.label}${uvol?'':` ${c.vol}ml`}`;
     if(c.f && !seen.has(ci)){ seen.add(ci); const p=_prepStr(c.f,c.vol); if(p) line+=` (${p})`; }
     out.push(line);
   }
@@ -3302,7 +3224,7 @@ function _groupedNote(comps, route, q, flush, r, ctx, isBtf) {
   const total=comps.reduce((s,c)=>s+c.freq,0);
   const out=[`${route} ${uvol?uvol+'ml ':''}${q} x ${total} feeds/day${flush}:`];
   comps.forEach(c=>{
-    if(useCase===1){
+    if(!_supportMode()){
       let extra='';
       if(c.f){ const b=_scoopsBracket(c.f,c.vol); if(b) extra=` (${b})`; }
       else if(c.kcal100!=null) extra=` (~${_n(c.kcal100,0)} kcal/100ml)`;
@@ -3327,7 +3249,7 @@ function buildConciseNote(r, ctx) {
   if(feedType==='multi' || feedType==='btf' || r.btfBased){
     const isBtf = (feedType==='btf' || r.btfBased);
     const comps=_scheduleComponents();
-    if(useCase===2 && _scheduleActive() && _sched){
+    if(_scheduleActive() && _sched){
       return _scheduleNote(route, q, flush, r, ctx, isBtf).join('\n');
     }
     if(comps.length){
@@ -3340,8 +3262,8 @@ function buildConciseNote(r, ctx) {
   if(feedType==='formula' && selectedFormula){
     const f=getEffectiveFormula();
     feedName=f.name;
-    if(useCase===1){ const b = r.scoopBased ? `${r.scoopsPerFeed} scoops/feed` : _scoopsBracket(f,vol); if(b) nameBracket=` (${b})`; }
-    if(useCase===2){ const p=_prepStr(f,vol); if(p) prepLine=`  prep: ${p}`; }
+    if(!_supportMode()){ const b = r.scoopBased ? `${r.scoopsPerFeed} scoops/feed` : _scoopsBracket(f,vol); if(b) nameBracket=` (${b})`; }
+    if(_supportMode()){ const p=_prepStr(f,vol); if(p) prepLine=`  prep: ${p}`; }
   } else if(feedType==='ebm'){ feedName='EBM';
   } else if(feedType==='ebmfort'){ const fk=document.getElementById('ebmFortFormula')?.value; const ff=fk?FORMULAS.paediatric.formulas[fk]:null; feedName=`fortified EBM${ff?' + '+ff.name:''}`;
   } else if(feedType==='mixed'){ feedName=`EBM + ${mixedFormula?mixedFormula.name:'formula'}`; }
@@ -3575,9 +3497,8 @@ function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
   const flushTotal = flushVol * flushPer * totalFeeds;
   const feedFluid  = r.totalVol || 0;
   const totalFluid = feedFluid + flushTotal + fd.extraFlushTotal + (fd.ivVolDay||0);
-  const intervalEl = document.getElementById('btf-interval');
-  const intervalMin = parseInt(intervalEl?.value)||180;
-  const intervalLabel = {120:'Q2H',180:'Q3H',240:'Q4H',360:'Q6H'}[intervalMin]||'';
+  const intervalMin = _intervalMin();
+  const intervalLabel = _qLabel();
 
   if(btfUseCase===1) {
     // ── UC1: Estimated intake ──────────────────────────────────────────────────
@@ -3609,9 +3530,6 @@ function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
 
   } else {
     // ── UC2: Prescription ─────────────────────────────────────────────────────
-    const startStr = document.getElementById('btf-start-time')?.value||'07:00';
-    const [startH,startM] = startStr.split(':').map(Number);
-
     // Header line
     lines.push(`${route} ${intervalLabel} ${fVol||'?'}ml ${totalFeeds} feeds/day`
       + (flushVol ? ` with ${flushVol}ml water flush pre & ${flushVol}ml water flush post feeds` : ''));
@@ -3622,31 +3540,30 @@ function renderBTFNotes(r, targetKcal, targetProt, weight, route) {
     lines.push(`Blended Tube Feeds (${r.btfKcal} kcal/100ml | ${r.btfProt||'?'}g protein/100ml)`);
     lines.push('');
 
-    // Schedule
+    // Schedule — use the consolidated "assign each feed" schedule when active,
+    // otherwise distribute the feeds evenly from the global start time + interval.
     lines.push('FEEDING SCHEDULE:');
-    const slots=[];
-    let mc=startH*60+startM;
-    for(let i=0;i<totalFeeds;i++){slots.push({min:mc,type:null});mc+=intervalMin;}
-    const btfIndices=new Set();
-    if(r.btfFreq>=totalFeeds){slots.forEach((_,i)=>btfIndices.add(i));}
-    else{
-      for(let i=0;i<r.btfFreq;i++){const idx=Math.round(i*totalFeeds/r.btfFreq);btfIndices.add(Math.min(idx,totalFeeds-1));}
-      let c=btfIndices.size;
-      for(let i=0;i<totalFeeds&&c<r.btfFreq;i++){if(!btfIndices.has(i)){btfIndices.add(i);c++;}}
-    }
-    slots.forEach((s,i)=>s.type=btfIndices.has(i)?'btf':'formula');
-    const mealInputs=document.querySelectorAll('.btf-meal-name-input');
-    let btfIdx=0;
-    slots.forEach(s=>{
-      const t=minToTime(s.min);
-      if(s.type==='btf'){
-        const name=mealInputs[btfIdx]?.value||`BTF Feed ${btfIdx+1}`;
-        lines.push(`${t}:  BTF — ${name}`);
-        btfIdx++;
-      } else {
-        lines.push(`${t}:  ${btfFormula?.name||'Formula'}`);
+    if(_scheduleActive() && _sched){
+      const { comps, total }=buildSchedule();
+      const times=_feedTimes(total);
+      for(let i=0;i<total;i++){
+        const c=comps[_sched[i]]; if(!c) continue;
+        const custom=(_schedLabels[i]||'').trim();
+        lines.push(`${times[i]}:  ${custom || (c.f ? c.label : 'BTF — '+c.label)}`);
       }
-    });
+    } else {
+      const times=_feedTimes(totalFeeds);
+      const btfIndices=new Set();
+      if(r.btfFreq>=totalFeeds){for(let i=0;i<totalFeeds;i++)btfIndices.add(i);}
+      else{
+        for(let i=0;i<r.btfFreq;i++){const idx=Math.round(i*totalFeeds/r.btfFreq);btfIndices.add(Math.min(idx,totalFeeds-1));}
+        let c=btfIndices.size;
+        for(let i=0;i<totalFeeds&&c<r.btfFreq;i++){if(!btfIndices.has(i)){btfIndices.add(i);c++;}}
+      }
+      for(let i=0;i<totalFeeds;i++){
+        lines.push(`${times[i]}:  ${btfIndices.has(i)?'BTF':(btfFormula?.name||'Formula')}`);
+      }
+    }
     lines.push('');
 
     // Dilution — per day total scoops
