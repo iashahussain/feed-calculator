@@ -65,6 +65,9 @@ header p{font-size:.82rem;color:var(--muted);margin-top:.3rem}
 .calc-readiness{font-size:.78rem;color:#92400e;background:#fff8e8;border:1px solid #fcd34d;border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;text-align:center}
 .note-mode-btn{font-size:.74rem;font-weight:700;padding:.3rem .85rem;border:1.5px solid var(--border);border-radius:7px;background:var(--card);color:var(--muted);cursor:pointer}
 .note-mode-btn.active{border-color:var(--accent);background:var(--light);color:var(--accent)}
+.sched-row{display:flex;align-items:center;gap:.6rem;margin-top:.4rem}
+.sched-time{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--accent);min-width:3.2rem}
+.sched-row select{flex:1}
 .btn-primary.ready{animation:readypulse 1.7s ease-in-out infinite}
 @keyframes readypulse{0%,100%{box-shadow:0 6px 18px rgba(71,85,105,.3)}50%{box-shadow:0 0 0 4px rgba(22,163,74,.4),0 6px 18px rgba(71,85,105,.3)}}
 .opt-tag{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:20px;padding:.12rem .5rem}
@@ -927,6 +930,7 @@ select:focus,input:focus{border-color:var(--accent)}
     <label>First feed time</label>
     <input type="time" id="timing-start" value="06:00" onchange="refreshConcise()">
   </div>
+  <div id="sched-editor" class="section-hidden"></div>
 </div>
 
 <!-- CALCULATE -->
@@ -1599,6 +1603,7 @@ function updateBTFPreview() {
   }
   updateFnBPreview();
   const preview = document.getElementById('btf-preview');
+  if(typeof renderScheduleEditor==='function') renderScheduleEditor();
 
   if(!btfKcal || !btfVol || !btfFreq) { preview.classList.add('section-hidden'); return; }
 
@@ -2209,6 +2214,8 @@ function setFeedType(type) {
     addMultiLine(); addMultiLine();
   }
   showFeedSection();
+  _sched = null;
+  if(typeof renderScheduleEditor==='function') renderScheduleEditor();
   if(typeof updateStepStatus==='function') updateStepStatus();
 }
 
@@ -3122,9 +3129,11 @@ let _noteMode = 'concise', _noteDetailed = '', _noteConcise = '', _lastR = null,
 function setNoteMode(m) { _noteMode = m; renderNoteView(); }
 function onTimingToggle() {
   document.getElementById('timing-start-wrap').classList.toggle('section-hidden', !document.getElementById('timing-toggle').checked);
+  if(typeof renderScheduleEditor==='function') renderScheduleEditor();
   refreshConcise();
 }
 function refreshConcise() {
+  if(typeof renderScheduleEditor==='function') renderScheduleEditor();
   if(!_lastR) return;
   try { _noteConcise = buildConciseNote(_lastR, _lastCtx); } catch(e) { console.error('Concise note error:', e); }
   renderNoteView();
@@ -3191,6 +3200,81 @@ function _conciseTail(r, ctx) {
   out.push('  '+fl);
   return out;
 }
+// ── Editable feed schedule: assign which feed goes at which time ───────────────
+let _sched = null;
+function _setBtfPrimaryFreq(n) {
+  let id;
+  if(btfUseCase===1) id = (btfInputMethod==='scoop') ? 'btf-ffreq-s' : 'btf-ffreq';
+  else id = (btfUC2InputMethod==='scoop') ? 'btf-ffreq2-s' : 'btf-ffreq2';
+  const el=document.getElementById(id); if(el) el.value = n;
+}
+function _scheduleComponents() {
+  const comps=[];
+  const addLines = (rootSel) => document.querySelectorAll(rootSel+' .multi-line').forEach(line=>{
+    const sel=line.querySelector('select'); const f=findFormulaByKey(sel?sel.value:'');
+    const volEl=line.querySelector('.ml-vol'), freqEl=line.querySelector('.ml-freq');
+    const vol=parseFloat(volEl&&volEl.value)||0, freq=parseFloat(freqEl&&freqEl.value)||0;
+    if(f && vol && freq) comps.push({label:f.name, f, vol, freq, setFreq:(n)=>{ if(freqEl) freqEl.value=n; }});
+  });
+  if(feedType==='multi'){ addLines('#multi-formula-lines'); }
+  else if(feedType==='btf'){
+    const bvol=parseFloat(document.getElementById('btf-vol')&&document.getElementById('btf-vol').value)||0;
+    const bfreq=parseFloat(document.getElementById('btf-freq')&&document.getElementById('btf-freq').value)||0;
+    if(bvol && bfreq) comps.push({label:'Blended feed', f:null, vol:bvol, freq:bfreq, setFreq:(n)=>{ document.getElementById('btf-freq').value=n; }});
+    const fv=getBTFFormulaVolFreq();
+    if(btfFormula && fv.fVol && fv.fFreq) comps.push({label:btfFormula.name, f:btfFormula, vol:fv.fVol, freq:fv.fFreq, setFreq:_setBtfPrimaryFreq});
+    addLines('#btf-extra-lines');
+  }
+  return comps;
+}
+function _scheduleActive() {
+  if(!_timingOn()) return false;
+  if(feedType!=='multi' && feedType!=='btf') return false;
+  return _scheduleComponents().length >= 2;
+}
+function buildSchedule() {
+  const comps=_scheduleComponents();
+  const total=comps.reduce((s,c)=>s+c.freq,0);
+  if(comps.length>=2 && total>0 && (!_sched || _sched.length!==total)){
+    _sched=_assignSlots(comps.map(c=>({freq:c.freq})), total);
+  }
+  return { comps, total };
+}
+function renderScheduleEditor() {
+  const wrap=document.getElementById('sched-editor'); if(!wrap) return;
+  if(!_scheduleActive()){ wrap.classList.add('section-hidden'); wrap.innerHTML=''; return; }
+  const { comps, total }=buildSchedule();
+  if(total<1){ wrap.classList.add('section-hidden'); wrap.innerHTML=''; return; }
+  const times=_feedTimes(total);
+  let html='<div class="sub-head" style="margin-top:.7rem">Assign each feed</div>';
+  for(let i=0;i<total;i++){
+    html+='<div class="sched-row"><span class="sched-time">'+times[i]+'</span><select data-slot="'+i+'" onchange="onSchedChange(this)">'
+      + comps.map((c,ci)=>'<option value="'+ci+'"'+(_sched[i]===ci?' selected':'')+'>'+c.label+' '+c.vol+'ml</option>').join('')
+      + '</select></div>';
+  }
+  wrap.classList.remove('section-hidden');
+  wrap.innerHTML=html;
+}
+function onSchedChange(sel) {
+  const i=parseInt(sel.dataset.slot); _sched[i]=parseInt(sel.value);
+  const comps=_scheduleComponents();
+  comps.forEach((c,ci)=>{ c.setFreq(_sched.filter(x=>x===ci).length); });
+  if(feedType==='multi') updateMultiPreview(); else updateBTFPreview();
+  updateFlushPreview(); updateFluidSummary();
+  if(typeof updateStepStatus==='function') updateStepStatus();
+}
+function _chronoLines(route, q, flush) {
+  const { comps, total }=buildSchedule();
+  const times=_feedTimes(total);
+  const out=[`${route} ${q} x ${total} feeds/day${flush}:`];
+  for(let i=0;i<total;i++){ const c=comps[_sched[i]]; if(c) out.push(`  ${times[i]}  ${c.label} ${c.vol}ml`); }
+  if(useCase===2){
+    const seen=new Set();
+    comps.forEach(c=>{ if(c.f && !seen.has(c.f.name)){ seen.add(c.f.name); const p=_prepStr(c.f,c.vol); if(p) out.push(`  prep — ${c.f.name}: ${p}`); } });
+  }
+  return out;
+}
+
 function buildConciseNote(r, ctx) {
   const { route, vol, freq } = ctx;
   const fd=getFluidData();
@@ -3199,6 +3283,7 @@ function buildConciseNote(r, ctx) {
   const lines=[];
 
   if(feedType==='multi'){
+    if(_scheduleActive() && _sched){ return _chronoLines(route, q, flush).concat(_conciseTail(r,ctx)).join('\n'); }
     const tot=getMultiTotals();
     lines.push(`${route} ${q} x ${tot.totalFeeds} feeds/day${flush}:`);
     tot.items.forEach((it,idx)=>{
@@ -3211,6 +3296,11 @@ function buildConciseNote(r, ctx) {
   }
 
   if(feedType==='btf' || r.btfBased){
+    if(feedType==='btf' && _scheduleActive() && _sched){
+      const l=_chronoLines(route, q, flush);
+      l.push('  NB blended-feed values are estimates - verify with recipe');
+      return l.concat(_conciseTail(r,ctx)).join('\n');
+    }
     const ex=getBtfExtraTotals();
     const total=r.btfFreq + (r.fFreq||0) + ex.totalFeeds;
     lines.push(`${route} ${q} x ${total} feeds/day${_windowStr(total)}${flush}:`);
@@ -3973,6 +4063,7 @@ function updateMultiPreview() {
   const box = document.getElementById('multi-preview');
   if(!box) return;
   const t = getMultiTotals();
+  if(typeof renderScheduleEditor==='function') renderScheduleEditor();
   if(!t.items.length) { box.classList.add('section-hidden'); if(typeof updateStepStatus==='function') updateStepStatus(); return; }
   box.classList.remove('section-hidden');
   const wt = parseFloat(document.getElementById('weight')?.value) || 0;
