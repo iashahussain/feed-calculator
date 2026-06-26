@@ -326,25 +326,39 @@ select:focus,input:focus{border-color:var(--accent)}
 <!-- Dark mode toggle -->
 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
 
-<div class="card" id="intro-card">
-  <p style="margin:0 0 .6rem;font-size:.86rem;line-height:1.5">Plan enteral &amp; oral feeds and check them against energy, protein &amp; fluid targets — paediatric &amp; adult. Work through the steps below, then tap <strong>Calculate</strong> for a breakdown and a copy-ready note.</p>
-  <button class="btn btn-secondary btn-small" style="width:auto;margin:0" onclick="loadExample()">▶ Load an example</button>
-  <details class="fi-details" style="margin-top:.6rem">
-    <summary>How it works</summary>
-    <div style="font-size:.8rem;line-height:1.6;color:var(--muted);padding:.35rem 0 0">
-      <strong>1.</strong> Enter the patient — weight &amp; age (Step 1), and their daily targets if you have them.<br>
-      <strong>2.</strong> Choose the feed &amp; formula (Step 2). In Step 3 pick <strong>Estimate current intake</strong> (what they're getting now) or <strong>Calculate Nutrition Support</strong> (plan to a target).<br>
-      <strong>3.</strong> Add fluids/flushes (Step 4) if tube-fed, then <strong>Calculate</strong>.
+<!-- HELP OVERLAY -->
+<div class="settings-overlay" id="help-overlay" onclick="if(event.target===this)closeHelp()">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h2>How to use</h2>
+      <button class="settings-close" onclick="closeHelp()">✕</button>
     </div>
-  </details>
-  <details class="fi-details" style="margin-top:.45rem">
-    <summary>What the abbreviations mean</summary>
-    <div style="font-size:.78rem;line-height:1.75;color:var(--muted);padding:.35rem 0 0">
-      <strong>EER</strong> estimated energy requirement · <strong>EPR</strong> estimated protein requirement · <strong>EFR</strong> estimated fluid requirement<br>
-      <strong>EBM</strong> expressed breast milk · <strong>BTF</strong> blended tube feed · <strong>RCH</strong> Royal Children's Hospital (dilution method)<br>
-      <strong>NGT / OGT</strong> naso/orogastric tube · <strong>PEG</strong> gastrostomy tube · <strong>EN</strong> enteral nutrition · <strong>TPN</strong> total parenteral (IV) nutrition
+    <div class="settings-body">
+      <p style="margin:0 0 .9rem;font-size:.9rem;line-height:1.5">Plan enteral &amp; oral feeds and check them against energy, protein &amp; fluid targets — paediatric &amp; adult. Work through the steps, then tap <strong>Calculate</strong> for a breakdown and a copy-ready note.</p>
+      <button class="btn btn-secondary" style="width:auto;margin:0 0 1.1rem" onclick="loadExample();closeHelp()">▶ Load an example</button>
+      <div class="settings-section">
+        <div class="settings-section-title">How it works</div>
+        <div style="font-size:.85rem;line-height:1.6;color:var(--muted)">
+          <strong>1.</strong> Enter the patient — weight &amp; age (Step 1), and daily targets if you have them.<br>
+          <strong>2.</strong> Choose the feed &amp; formula (Step 2). In Step 3 pick <strong>Estimate current intake</strong> or <strong>Calculate Nutrition Support</strong>.<br>
+          <strong>3.</strong> Add fluids/flushes (Step 4) if tube-fed, then <strong>Calculate</strong>.
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Abbreviations</div>
+        <div style="font-size:.82rem;line-height:1.75;color:var(--muted)">
+          <strong>EER</strong> estimated energy requirement · <strong>EPR</strong> estimated protein requirement · <strong>EFR</strong> estimated fluid requirement<br>
+          <strong>EBM</strong> expressed breast milk · <strong>BTF</strong> blended tube feed · <strong>RCH</strong> Royal Children's Hospital (dilution method)<br>
+          <strong>NGT / OGT</strong> naso/orogastric tube · <strong>PEG</strong> gastrostomy tube · <strong>EN</strong> enteral nutrition · <strong>TPN</strong> total parenteral (IV) nutrition
+        </div>
+      </div>
     </div>
-  </details>
+  </div>
+</div>
+
+<!-- slim help trigger -->
+<div style="text-align:center;margin:-.2rem 0 1rem">
+  <button onclick="openHelp()" style="background:none;border:none;color:var(--muted);font-size:.78rem;cursor:pointer;text-decoration:underline;text-underline-offset:3px">How to use · abbreviations · example</button>
 </div>
 
 <!-- PATIENT INFO -->
@@ -392,7 +406,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- FEED TYPE -->
 <div class="card">
-  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h12v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5z"/><path d="M17 9h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8.5 3.5c0 1-1 1.4-1 2.5M11.5 3.5c0 1-1 1.4-1 2.5"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 2</span><span class="step-title">Feed type &amp; formula</span></span><span class="step-check" id="sb2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
+  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12H6"/><rect x="6" y="9" width="9" height="6" rx="1"/><path d="M15 12h3M18 9.5v5M9 10v4M11.5 10v4"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 2</span><span class="step-title">Feed type &amp; formula</span></span><span class="step-check" id="sb2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
   <div class="tabs">
     <div class="tab paeds active" id="tab-paeds" onclick="setPatientType('paeds')">👶 Paediatric</div>
     <div class="tab adult" id="tab-adult" onclick="setPatientType('adult')">🧑 Adult</div>
@@ -1032,6 +1046,15 @@ function openSettings() {
 
 function closeSettings() {
   document.getElementById('settings-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function openHelp() {
+  document.getElementById('help-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeHelp() {
+  document.getElementById('help-overlay').classList.remove('open');
   document.body.style.overflow = '';
 }
 
