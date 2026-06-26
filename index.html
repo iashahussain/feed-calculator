@@ -3140,8 +3140,8 @@ function _scheduleComponents() {
   const comps=[];
   const addLines = (rootSel) => document.querySelectorAll(rootSel+' .multi-line').forEach(line=>{
     const sel=line.querySelector('select'); const f=findFormulaByKey(sel?sel.value:'');
-    const volEl=line.querySelector('.ml-vol'), freqEl=line.querySelector('.ml-freq');
-    const vol=parseFloat(volEl&&volEl.value)||0, freq=parseFloat(freqEl&&freqEl.value)||0;
+    const freqEl=line.querySelector('.ml-freq');
+    const vol=_multiLineVol(line), freq=parseFloat(freqEl&&freqEl.value)||0;
     if(f && vol && freq) comps.push({label:f.name, f, vol, freq, kcal100:f.kcal, prot100:f.protein, setFreq:(n)=>{ if(freqEl) freqEl.value=n; }});
   });
   if(feedType==='multi'){ addLines('#multi-formula-lines'); }
@@ -3896,12 +3896,45 @@ function fillFormulaOptions(sel) {
   });
   if(cur) sel.value = cur;
 }
+// Effective volume per feed for a .multi-line: read directly, or convert from
+// scoops at standard dilution (vol = scoops × scoopG / (stdDilution/100)).
+function _multiLineVol(line) {
+  if((line.dataset.method||'vol')==='scoop') {
+    const sel=line.querySelector('select'); const f=findFormulaByKey(sel?sel.value:'');
+    const s=parseFloat(line.querySelector('.ml-scoops')?.value)||0;
+    if(f && f.scoopG && f.stdDilution && s) return Math.round(s*f.scoopG/(f.stdDilution/100));
+    return 0;
+  }
+  return parseFloat(line.querySelector('.ml-vol')?.value) || 0;
+}
+function setMultiLineMethod(btn, method) {
+  const line=btn.closest('.multi-line'); if(!line) return;
+  line.dataset.method=method;
+  line.querySelector('.ml-m-vol').classList.toggle('active', method==='vol');
+  line.querySelector('.ml-m-scoop').classList.toggle('active', method==='scoop');
+  line.querySelector('.ml-vol-wrap').classList.toggle('section-hidden', method!=='vol');
+  line.querySelector('.ml-scoop-wrap').classList.toggle('section-hidden', method!=='scoop');
+  _sched=null;
+  updateMultiPreview(); updateFlushPreview(); updateFluidSummary();
+  if(typeof updateStepStatus==='function') updateStepStatus();
+}
+function updateMultiLineEqs() {
+  document.querySelectorAll('#multi-formula-lines .multi-line').forEach(line=>{
+    const eq=line.querySelector('.ml-scoop-eq'); if(!eq) return;
+    if((line.dataset.method||'vol')!=='scoop') { eq.classList.add('section-hidden'); return; }
+    const sel=line.querySelector('select'); const f=findFormulaByKey(sel?sel.value:'');
+    if(f && !(f.scoopG && f.stdDilution)) { eq.classList.remove('section-hidden'); eq.textContent='Not a powder formula — enter by volume'; return; }
+    const v=_multiLineVol(line);
+    if(v) { eq.classList.remove('section-hidden'); eq.textContent='≈ '+v+'ml per feed (standard dilution)'; }
+    else eq.classList.add('section-hidden');
+  });
+}
 function getMultiLines() {
   return Array.from(document.querySelectorAll('#multi-formula-lines .multi-line')).map(line => {
     const sel = line.querySelector('select');
     return {
       key: sel ? sel.value : '',
-      vol: parseFloat(line.querySelector('.ml-vol')?.value) || 0,
+      vol: _multiLineVol(line),
       freq: parseFloat(line.querySelector('.ml-freq')?.value) || 0
     };
   });
@@ -3933,16 +3966,25 @@ function addMultiLine() {
   const selId = 'multiFormula_' + (_multiSeq++);
   const line = document.createElement('div');
   line.className = 'multi-line subpanel';
+  line.dataset.method = 'vol';
   line.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">'
     +   '<div class="sub-head" style="margin:.1rem 0 .35rem">Formula</div>'
     +   '<button type="button" class="ml-remove" title="Remove" onclick="removeMultiLine(this)">✕</button>'
     +   '</div>'
     +   '<select id="' + selId + '" onchange="updateMultiPreview()"></select>'
+    +   '<div style="display:flex;gap:.4rem;margin-top:.5rem">'
+    +     '<div class="feed-btn active ml-m-vol" onclick="setMultiLineMethod(this,\'vol\')">By volume</div>'
+    +     '<div class="feed-btn ml-m-scoop" onclick="setMultiLineMethod(this,\'scoop\')">By scoops</div>'
+    +   '</div>'
     +   '<div class="g2" style="margin-top:.5rem">'
-    +     '<div><label>Volume per feed (ml)</label><input type="number" class="ml-vol" placeholder="e.g. 90" oninput="updateMultiPreview();updateFlushPreview();updateFluidSummary()"></div>'
+    +     '<div>'
+    +       '<div class="ml-vol-wrap"><label>Volume per feed (ml)</label><input type="number" class="ml-vol" placeholder="e.g. 90" oninput="updateMultiPreview();updateFlushPreview();updateFluidSummary()"></div>'
+    +       '<div class="ml-scoop-wrap section-hidden"><label>Scoops per feed</label><input type="number" step="0.5" class="ml-scoops" placeholder="e.g. 3" oninput="updateMultiPreview();updateFlushPreview();updateFluidSummary()"></div>'
+    +     '</div>'
     +     '<div><label>Feeds per day</label><input type="number" class="ml-freq" placeholder="e.g. 3" oninput="updateMultiPreview();updateFlushPreview();updateFluidSummary()"></div>'
-    +   '</div>';
+    +   '</div>'
+    +   '<div class="ml-scoop-eq hint section-hidden" style="margin-top:.3rem;color:var(--accent)"></div>';
   wrap.appendChild(line);
   fillFormulaOptions(document.getElementById(selId));
   enhanceCombo(selId);
@@ -4020,6 +4062,7 @@ function getBtfExtraTotals() {
 function updateMultiPreview() {
   const box = document.getElementById('multi-preview');
   if(!box) return;
+  if(typeof updateMultiLineEqs==='function') updateMultiLineEqs();
   const t = getMultiTotals();
   if(typeof renderScheduleEditor==='function') renderScheduleEditor();
   if(!t.items.length) { box.classList.add('section-hidden'); if(typeof updateStepStatus==='function') updateStepStatus(); return; }
