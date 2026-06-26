@@ -3183,15 +3183,16 @@ function _prepStr(f, vol) {
 }
 function _conciseTail(r, ctx) {
   const fd=getFluidData(); const { targetKcal, targetProt, weight }=ctx; const out=[];
-  const kcalKg = weight ? ` (${Math.round(r.kcalDay/weight)}/kg)` : '';
-  const protKg = weight ? ` (${(r.protDay/weight).toFixed(1)}/kg)` : '';
-  let prov=`Provides ${r.kcalDay} kcal${kcalKg}, ${r.protDay}g protein${protKg}`;
+  const perKg = (patientType==='paeds') && weight;   // per-kg readouts for paeds only
+  const kcalKg = perKg ? ` (${Math.round(r.kcalDay/weight)}/kg)` : '';
+  const protKg = perKg ? ` (${(r.protDay/weight).toFixed(1)}/kg)` : '';
+  let prov=`Provides ${Math.round(r.kcalDay)} kcal${kcalKg}, ${r.protDay}g protein${protKg}`;
   const pct=[]; const kcalIV=r.kcalDay+(fd.ivKcalDay||0);
   if(targetKcal) pct.push(`${Math.round(kcalIV/targetKcal*100)}% EER`);
   if(targetProt) pct.push(`${Math.round(r.protDay/targetProt*100)}% EPR`);
   if(pct.length) prov+=` - ${pct.join(', ')}`;
+  if(r.naDay||r.kDay) prov+=`, Na ${r.naDay||0}mg, K ${r.kDay||0}mg/day`;
   out.push('  '+prov);
-  if(r.naDay||r.kDay) out.push(`  Na ${r.naDay||0}mg, K ${r.kDay||0}mg/day`);
   const feedVol=Math.round(r.totalVol||0), flushAll=Math.round((fd.flushTotal||0)+(fd.extraFlushTotal||0)), iv=Math.round(fd.ivVolDay||0);
   const parts=[`${feedVol} feed`]; if(flushAll) parts.push(`${flushAll} flush`); if(iv) parts.push(`${iv} IV`);
   const totalFluid=feedVol+flushAll+iv;
@@ -3214,24 +3215,29 @@ function _scheduleComponents() {
     const sel=line.querySelector('select'); const f=findFormulaByKey(sel?sel.value:'');
     const volEl=line.querySelector('.ml-vol'), freqEl=line.querySelector('.ml-freq');
     const vol=parseFloat(volEl&&volEl.value)||0, freq=parseFloat(freqEl&&freqEl.value)||0;
-    if(f && vol && freq) comps.push({label:f.name, f, vol, freq, setFreq:(n)=>{ if(freqEl) freqEl.value=n; }});
+    if(f && vol && freq) comps.push({label:f.name, f, vol, freq, kcal100:f.kcal, prot100:f.protein, setFreq:(n)=>{ if(freqEl) freqEl.value=n; }});
   });
   if(feedType==='multi'){ addLines('#multi-formula-lines'); }
   else if(feedType==='btf'){
     const bvol=parseFloat(document.getElementById('btf-vol')&&document.getElementById('btf-vol').value)||0;
     const bfreq=parseFloat(document.getElementById('btf-freq')&&document.getElementById('btf-freq').value)||0;
-    if(bvol && bfreq) comps.push({label:'Blended feed', f:null, vol:bvol, freq:bfreq, setFreq:(n)=>{ document.getElementById('btf-freq').value=n; }});
+    const bkcal=parseFloat(document.getElementById('btf-kcal')&&document.getElementById('btf-kcal').value)||0;
+    const bprot=parseFloat(document.getElementById('btf-prot')&&document.getElementById('btf-prot').value);
+    if(bvol && bfreq) comps.push({label:'Blended feed', f:null, vol:bvol, freq:bfreq, kcal100:bkcal||null, prot100:isNaN(bprot)?null:bprot, setFreq:(n)=>{ document.getElementById('btf-freq').value=n; }});
     const fv=getBTFFormulaVolFreq();
-    if(btfFormula && fv.fVol && fv.fFreq) comps.push({label:btfFormula.name, f:btfFormula, vol:fv.fVol, freq:fv.fFreq, setFreq:_setBtfPrimaryFreq});
+    if(btfFormula && fv.fVol && fv.fFreq) comps.push({label:btfFormula.name, f:btfFormula, vol:fv.fVol, freq:fv.fFreq, kcal100:btfFormula.kcal, prot100:btfFormula.protein, setFreq:_setBtfPrimaryFreq});
     addLines('#btf-extra-lines');
   }
   return comps;
 }
 function _scheduleActive() {
+  if(useCase!==2) return false;          // "assign each feed" is a nutrition-support feature only
   if(!_timingOn()) return false;
   if(feedType!=='multi' && feedType!=='btf') return false;
   return _scheduleComponents().length >= 2;
 }
+function _uniformVol(comps){ if(!comps.length) return null; const v=comps[0].vol; return comps.every(c=>c.vol===v) ? v : null; }
+function _n(x,d){ return String(+(+x).toFixed(d)); }
 function buildSchedule() {
   const comps=_scheduleComponents();
   const total=comps.reduce((s,c)=>s+c.freq,0);
@@ -3263,16 +3269,52 @@ function onSchedChange(sel) {
   updateFlushPreview(); updateFluidSummary();
   if(typeof updateStepStatus==='function') updateStepStatus();
 }
-function _chronoLines(route, q, flush) {
+function _compDensity(c){
+  if(c.kcal100==null) return '';
+  return ` (${_n(c.kcal100,0)} kcal/100ml${c.prot100!=null?` | ${_n(c.prot100,2)}g protein/100ml`:''})`;
+}
+// Nutrition-support (UC2) multi / BTF with timing: component summary + a chronological
+// schedule. Volume is hoisted to the header when every component shares it; prep appears
+// once (in brackets) on each formula's first slot.
+function _scheduleNote(route, q, flush, r, ctx, isBtf) {
   const { comps, total }=buildSchedule();
   const times=_feedTimes(total);
-  const out=[`${route} ${q} x ${total} feeds/day${flush}:`];
-  for(let i=0;i<total;i++){ const c=comps[_sched[i]]; if(c) out.push(`  ${times[i]}  ${c.label} ${c.vol}ml`); }
-  if(useCase===2){
-    const seen=new Set();
-    comps.forEach(c=>{ if(c.f && !seen.has(c.f.name)){ seen.add(c.f.name); const p=_prepStr(c.f,c.vol); if(p) out.push(`  prep — ${c.f.name}: ${p}`); } });
+  const uvol=_uniformVol(comps);
+  const out=[`${route} ${uvol?uvol+'ml ':''}${q} x ${total} feeds/day${flush}:`];
+  comps.forEach(c=>{ out.push(`  ${c.label}${_compDensity(c)} x ${c.freq} feeds`); });
+  out.push('');
+  out.push('  Schedule');
+  const seen=new Set();
+  for(let i=0;i<total;i++){
+    const ci=_sched[i], c=comps[ci]; if(!c) continue;
+    let line=`  ${times[i]}: ${c.label}${uvol?'':` ${c.vol}ml`}`;
+    if(c.f && !seen.has(ci)){ seen.add(ci); const p=_prepStr(c.f,c.vol); if(p) line+=` (${p})`; }
+    out.push(line);
   }
-  return out;
+  out.push('');
+  if(isBtf) out.push('  NB blended-feed values are estimates - verify with recipe');
+  return out.concat(_conciseTail(r,ctx));
+}
+// Multi / BTF without a timed schedule. UC1 (estimate): count + scoops/feed only.
+// UC2 (support): component density summary + prep in brackets.
+function _groupedNote(comps, route, q, flush, r, ctx, isBtf) {
+  const uvol=_uniformVol(comps);
+  const total=comps.reduce((s,c)=>s+c.freq,0);
+  const out=[`${route} ${uvol?uvol+'ml ':''}${q} x ${total} feeds/day${flush}:`];
+  comps.forEach(c=>{
+    if(useCase===1){
+      let extra='';
+      if(c.f){ const b=_scoopsBracket(c.f,c.vol); if(b) extra=` (${b})`; }
+      else if(c.kcal100!=null) extra=` (~${_n(c.kcal100,0)} kcal/100ml)`;
+      out.push(`  ${c.label}${uvol?'':` ${c.vol}ml`} x${c.freq}${extra}`);
+    } else {
+      let line=`  ${c.label}${_compDensity(c)} x ${c.freq} feeds`;
+      if(c.f){ const p=_prepStr(c.f,c.vol); if(p) line+=` (${p})`; }
+      out.push(line);
+    }
+  });
+  if(isBtf) out.push('  NB blended-feed values are estimates - verify with recipe');
+  return out.concat(_conciseTail(r,ctx));
 }
 
 function buildConciseNote(r, ctx) {
@@ -3282,39 +3324,16 @@ function buildConciseNote(r, ctx) {
   const flush=(fd.tubeFed&&fd.flushVol>0)?` with ${fd.flushVol}ml pre & ${fd.flushVol}ml post flush`:'';
   const lines=[];
 
-  if(feedType==='multi'){
-    if(_scheduleActive() && _sched){ return _chronoLines(route, q, flush).concat(_conciseTail(r,ctx)).join('\n'); }
-    const tot=getMultiTotals();
-    lines.push(`${route} ${q} x ${tot.totalFeeds} feeds/day${flush}:`);
-    tot.items.forEach((it,idx)=>{
-      const times=_itemTimes(tot.items, idx, tot.totalFeeds);
-      let sc=''; if(useCase===1){ const b=_scoopsBracket(it.f,it.vol); if(b) sc=` (${b})`; }
-      lines.push(`  - ${it.f.name} ${it.vol}ml x${it.freq}${sc}${times}`);
-      if(useCase===2){ const p=_prepStr(it.f,it.vol); if(p) lines.push(`      prep: ${p}`); }
-    });
-    return lines.concat(_conciseTail(r,ctx)).join('\n');
-  }
-
-  if(feedType==='btf' || r.btfBased){
-    if(feedType==='btf' && _scheduleActive() && _sched){
-      const l=_chronoLines(route, q, flush);
-      l.push('  NB blended-feed values are estimates - verify with recipe');
-      return l.concat(_conciseTail(r,ctx)).join('\n');
+  if(feedType==='multi' || feedType==='btf' || r.btfBased){
+    const isBtf = (feedType==='btf' || r.btfBased);
+    const comps=_scheduleComponents();
+    if(useCase===2 && _scheduleActive() && _sched){
+      return _scheduleNote(route, q, flush, r, ctx, isBtf).join('\n');
     }
-    const ex=getBtfExtraTotals();
-    const total=r.btfFreq + (r.fFreq||0) + ex.totalFeeds;
-    lines.push(`${route} ${q} x ${total} feeds/day${_windowStr(total)}${flush}:`);
-    lines.push(`  - Blended feed ${r.btfVol}ml x${r.btfFreq} (~${r.btfKcal} kcal/100ml)`);
-    if(r.fTotal && btfFormula){
-      lines.push(`  - ${btfFormula.name} ${r.fVol}ml x${r.fFreq}`);
-      if(useCase===2){ const p=_prepStr(btfFormula, r.fVol); if(p) lines.push(`      prep: ${p}`); }
+    if(comps.length){
+      return _groupedNote(comps, route, q, flush, r, ctx, isBtf).join('\n');
     }
-    ex.items.forEach(it=>{
-      lines.push(`  - ${it.f.name} ${it.vol}ml x${it.freq}`);
-      if(useCase===2){ const p=_prepStr(it.f, it.vol); if(p) lines.push(`      prep: ${p}`); }
-    });
-    lines.push('  NB blended-feed values are estimates - verify with recipe');
-    return lines.concat(_conciseTail(r,ctx)).join('\n');
+    // fall through to single-feed handling if no components resolved
   }
 
   let feedName='feed', nameBracket='', prepLine='';

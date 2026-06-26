@@ -1,0 +1,12 @@
+Rework concise notes: kcal whole, merged Na/K, support schedule format
+
+- Round kcal to whole numbers in the Provides line
+- Na & K now appended to the Provides line (after EER/EPR)
+- Drop per-kg readouts for adult patients (paeds only)
+- Estimate intake (multi/BTF): grouped count + scoops/feed, no timing
+- Hoist shared per-feed volume to the header line for multi/BTF
+- Nutrition support (multi & BTF): component density summary, then a
+  Schedule block (HH:MM: feed), with prep shown once per formula
+- Schedule editor restricted to nutrition-support mode
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
