@@ -661,7 +661,20 @@ select:focus,input:focus{border-color:var(--accent)}
       <option value="Oral">Oral</option>
       <option value="Oral + EN">Oral + EN</option>
     </select>
-    <div class="hint" style="margin:.5rem 0 .2rem">Add each formula the patient receives, with its volume per feed and feeds per day. Totals are combined — works for estimating intake and for checking nutrition support against the target.</div>
+
+    <!-- UC tabs for multi-formula -->
+    <div class="tabs" style="margin-top:.8rem">
+      <div class="tab paeds active" id="multi-uc-tab-1" onclick="setMultiUseCase(1)">
+        📋 Estimate intake
+        <div style="font-size:.65rem;font-weight:400;margin-top:.1rem">What are they getting?</div>
+      </div>
+      <div class="tab adult" id="multi-uc-tab-2" onclick="setMultiUseCase(2)">
+        🎯 Calculate Nutrition Support
+        <div style="font-size:.65rem;font-weight:400;margin-top:.1rem">Check the plan against targets</div>
+      </div>
+    </div>
+
+    <div class="hint" style="margin:.5rem 0 .2rem">Add each formula the patient receives, with its volume per feed and feeds per day. Totals are combined.</div>
     <div id="multi-formula-lines"></div>
     <button type="button" class="btn btn-secondary" style="margin-top:.6rem" onclick="addMultiLine()">＋ Add another formula</button>
     <div id="multi-preview" class="section-hidden" style="margin-top:.7rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.78rem">
@@ -1119,6 +1132,7 @@ let ebmFortLevel = 'std';
 let peptConc = '1.0';
 let mixedFormula = null;
 let useCase = 1; // 1=intake estimation, 2=feed planning
+let multiUseCase = 1; // multi-formula tab's own mode (1=estimate, 2=nutrition support)
 let inputMethod = 'vol'; // 'vol' or 'scoop'
 let btfDensity = 'std';
 let btfFormula = null;
@@ -1371,6 +1385,21 @@ function setBTFUseCase(uc) {
   }
   updateBTFPreview();
   if(typeof renderScheduleEditor==='function') renderScheduleEditor();
+}
+
+function setMultiUseCase(uc) {
+  multiUseCase = uc;
+  document.getElementById('multi-uc-tab-1').classList.toggle('active', uc===1);
+  document.getElementById('multi-uc-tab-2').classList.toggle('active', uc===2);
+  _sched = null; _schedLabels = {};
+  if(uc===2) {
+    // Reveal the "assign each feed" schedule straight away for nutrition support
+    const tt=document.getElementById('timing-toggle');
+    if(tt && !tt.checked) { tt.checked=true; onTimingToggle(); }
+  }
+  updateMultiPreview();
+  if(typeof renderScheduleEditor==='function') renderScheduleEditor();
+  if(typeof refreshConcise==='function') refreshConcise();
 }
 
 function getBTFFormulaVolFreq() {
@@ -3096,7 +3125,11 @@ let _sched = null;        // slot index -> component index
 let _schedLabels = {};    // slot index -> custom label / recipe text
 // Nutrition-support mode for the active feed type. BTF has its own UC tabs
 // (btfUseCase); everything else follows the main useCase.
-function _supportMode(){ return feedType==='btf' ? (btfUseCase===2) : (useCase===2); }
+function _supportMode(){
+  if(feedType==='btf')   return btfUseCase===2;
+  if(feedType==='multi') return multiUseCase===2;
+  return useCase===2;
+}
 function _setBtfPrimaryFreq(n) {
   let id;
   if(btfUseCase===1) id = (btfInputMethod==='scoop') ? 'btf-ffreq-s' : 'btf-ffreq';
