@@ -53,6 +53,15 @@ header p{font-size:.82rem;color:var(--muted);margin-top:.3rem}
 .ct{display:flex;align-items:center;gap:.5rem;font-size:.98rem;font-weight:800;letter-spacing:0;text-transform:none;color:var(--text);margin-bottom:.9rem}
 .step-badge{display:inline-flex;align-items:center;justify-content:center;width:1.45rem;height:1.45rem;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;font-weight:800;flex:none;transition:background .2s}
 .step-badge.done{background:var(--success)}
+.step-ic{display:inline-flex;align-items:center;justify-content:center;color:var(--accent);flex:none}
+.step-ic svg{width:22px;height:22px}
+.step-tt{display:flex;flex-direction:column;line-height:1.18;min-width:0}
+.step-eyebrow{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--accent)}
+.step-title{font-size:.98rem;font-weight:800;color:var(--text)}
+.step-check{margin-left:auto;color:var(--success);flex:none;opacity:0;transition:opacity .2s}
+.step-check.done{opacity:1}
+.step-check svg{width:20px;height:20px}
+.ct .ct-suffix{font-weight:400;color:var(--muted);font-size:.72rem}
 .calc-readiness{font-size:.78rem;color:#92400e;background:#fff8e8;border:1px solid #fcd34d;border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;text-align:center}
 .note-mode-btn{font-size:.74rem;font-weight:700;padding:.3rem .85rem;border:1.5px solid var(--border);border-radius:7px;background:var(--card);color:var(--muted);cursor:pointer}
 .note-mode-btn.active{border-color:var(--accent);background:var(--light);color:var(--accent)}
@@ -340,7 +349,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- PATIENT INFO -->
 <div class="card">
-  <div class="ct"><span class="step-badge" id="sb1">1</span>👤 Patient &amp; requirements</div>
+  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 1</span><span class="step-title">Patient &amp; requirements</span></span><span class="step-check" id="sb1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
   <div class="g2">
     <div>
       <label>Weight (kg)</label>
@@ -383,7 +392,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- FEED TYPE -->
 <div class="card">
-  <div class="ct"><span class="step-badge" id="sb2">2</span>🍽️ Feed type &amp; formula</div>
+  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h12v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5z"/><path d="M17 9h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8.5 3.5c0 1-1 1.4-1 2.5M11.5 3.5c0 1-1 1.4-1 2.5"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 2</span><span class="step-title">Feed type &amp; formula</span></span><span class="step-check" id="sb2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
   <div class="tabs">
     <div class="tab paeds active" id="tab-paeds" onclick="setPatientType('paeds')">👶 Paediatric</div>
     <div class="tab adult" id="tab-adult" onclick="setPatientType('adult')">🧑 Adult</div>
@@ -686,7 +695,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- USE CASE SELECTOR -->
 <div class="card" id="uc-card">
-  <div class="ct"><span class="step-badge" id="sb3">3</span>🎯 What do you want to calculate?</div>
+  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 3</span><span class="step-title">What do you want to calculate?</span></span><span class="step-check" id="sb3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
   <div class="tabs">
     <div class="tab paeds active" id="uc-tab-1" onclick="setUseCase(1)">
       📋 Estimate current intake
@@ -796,7 +805,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- FLUIDS & IV CARD -->
 <div class="card" id="fluids-card">
-  <div class="ct"><span class="step-badge" id="sb4">4</span>💧 Fluids &amp; flushes</div>
+  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3.5C12 3.5 6 9.5 6 14a6 6 0 0 0 12 0c0-4.5-6-10.5-6-10.5z"/></svg></span><span class="step-tt"><span class="step-eyebrow">Step 4</span><span class="step-title">Fluids &amp; flushes</span></span><span class="step-check" id="sb4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg></span></div>
 
   <!-- Water flushes — tube-fed only, shown/hidden by route -->
   <div id="flush-section" class="subpanel" style="display:none">
@@ -883,7 +892,7 @@ select:focus,input:focus{border-color:var(--accent)}
 
 <!-- FEED SCHEDULE (for the note) -->
 <div class="card" id="sched-card">
-  <div class="ct" style="font-size:.9rem"><span class="step-badge" style="background:var(--muted)">⏱</span>Feed schedule <span style="font-weight:400;color:var(--muted);font-size:.72rem">— for the note</span></div>
+  <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span><span class="step-title">Feed schedule</span><span class="ct-suffix">— for the note</span></div>
   <div class="g2">
     <div>
       <label>Feed interval</label>
@@ -914,7 +923,7 @@ select:focus,input:focus{border-color:var(--accent)}
 <div id="output-section">
   <div class="sep"></div>
   <div class="card">
-    <div class="ct">Nutritional Summary</div>
+    <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V11M12 19V5M19 19v-6"/></svg></span><span class="step-title">Nutritional summary</span></div>
     <div id="results-grid" class="res-grid"></div>
     <div id="pct-eer" class="section-hidden"></div>
     <div id="recipe-display"></div>
@@ -922,7 +931,7 @@ select:focus,input:focus{border-color:var(--accent)}
   </div>
 
   <div class="card">
-    <div class="ct">Notes Output</div>
+    <div class="ct"><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5V8h4M9 12.5h6M9 16h4"/></svg></span><span class="step-title">Notes output</span></div>
     <button class="copy-btn" id="copy-btn" onclick="copyOutput()">Copy</button>
     <button class="copy-btn" id="send-dash-btn" onclick="sendToDashboard()" style="display:none;margin-left:6px;background:#1a8a4f">→ Send to dashboard</button>
     <div style="clear:both;display:flex;gap:.4rem;margin-bottom:.5rem;padding-top:.2rem">
@@ -3991,7 +4000,6 @@ function _fieldVal(id) { const el = document.getElementById(id); return el ? Str
 function _setStepBadge(id, done, n) {
   const el = document.getElementById(id); if(!el) return;
   el.classList.toggle('done', done);
-  el.textContent = done ? '✓' : String(n);
 }
 function updateStepStatus() {
   const s1 = !!_fieldVal('weight') && !!_fieldVal('ageGroup');
